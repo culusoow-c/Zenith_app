@@ -1,0 +1,2699 @@
+<!DOCTYPE html>
+<html lang="so" class="h-full bg-slate-50 text-slate-800">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenith - CULUSOOW Student Learning & Time Dashboard</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#C2410C">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js for Analytics tab -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        pupil: {
+                            50: '#FFF7ED',
+                            100: '#FFEDD5',
+                            200: '#FED7AA',
+                            300: '#FDBA74',
+                            400: '#FB923C',
+                            500: '#F97316',
+                            600: '#EA580C',
+                            700: '#C2410C',
+                            800: '#9A3412',
+                            900: '#7C2D12',
+                            950: '#431407',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar styling for ergonomic viewing */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FAFAF9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #FDBA74;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FB923C;
+        }
+        .pupil-banner {
+            background: linear-gradient(135deg, #9A3412 0%, #EA580C 50%, #C2410C 100%);
+        }
+        .pupil-card-shadow {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+        }
+        /* Dopamine celebration animation */
+        @keyframes pulseSuccess {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+        .pulse-complete {
+            animation: pulseSuccess 0.4s ease-in-out;
+        }
+        /* Alarm ring shake animation */
+        @keyframes ringShake {
+            0%, 100% { transform: rotate(0deg); }
+            10%, 30%, 50%, 70% { transform: rotate(-12deg); }
+            20%, 40%, 60%, 80% { transform: rotate(12deg); }
+            90% { transform: rotate(-6deg); }
+        }
+        .alarm-ring-icon {
+            animation: ringShake 0.9s ease-in-out infinite;
+        }
+        @keyframes ringPulseBg {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.35); }
+            50% { box-shadow: 0 0 0 20px rgba(234, 88, 12, 0); }
+        }
+        .alarm-ring-pulse {
+            animation: ringPulseBg 1.2s ease-out infinite;
+        }
+    </style>
+</head>
+<body class="h-full font-sans antialiased bg-slate-100/70 text-slate-800">
+
+    <!-- AUTH SCREEN: Login / Sign Up gate -->
+    <div id="authScreen" class="h-full w-full flex items-center justify-center p-4 bg-slate-100">
+        <div class="w-full max-w-sm">
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-pupil-500 to-pupil-800 flex items-center justify-center shadow-md mx-auto mb-3 p-2.5">
+                    <svg viewBox="0 0 100 100" class="w-full h-full" fill="none">
+                        <path d="M62 70 L82 70 L66 42 L58 55 Z" fill="#FDBA74"/>
+                        <path d="M18 70 L50 20 L82 70 Z" fill="#FFF7ED"/>
+                        <path d="M50 20 L64 43 L57 43 L50 33 L43 43 L36 43 Z" fill="#C2410C"/>
+                        <path d="M50 8 L53 15 L60 18 L53 21 L50 28 L47 21 L40 18 L47 15 Z" fill="#FFEDD5"/>
+                    </svg>
+                </div>
+                <h1 class="text-xl font-extrabold text-slate-900">Zenith</h1>
+                <p class="text-xs text-slate-500 mt-1">Xogtaadu waa mid gaar kuu ah, lagumana daro qof kale.</p>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200/80 pupil-card-shadow p-6">
+                <!-- Tab switcher -->
+                <div class="flex bg-slate-100 rounded-xl p-1 mb-5 text-xs font-bold">
+                    <button id="authTabLoginBtn" onclick="switchAuthTab('login')" class="flex-1 py-2 rounded-lg transition-all bg-white text-pupil-700 shadow-sm">Login</button>
+                    <button id="authTabSignupBtn" onclick="switchAuthTab('signup')" class="flex-1 py-2 rounded-lg transition-all text-slate-500">Sign Up</button>
+                </div>
+
+                <!-- LOGIN FORM -->
+                <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Username</label>
+                        <input type="text" id="loginUsername" required autocomplete="username" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:outline-none focus:border-pupil-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+                        <input type="password" id="loginPassword" required autocomplete="current-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:outline-none focus:border-pupil-500">
+                    </div>
+                    <p id="loginError" class="text-xs text-rose-600 font-semibold hidden"></p>
+                    <button type="submit" class="w-full py-3 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-sm font-bold shadow-md transition-all">Login</button>
+                </form>
+
+                <!-- SIGN UP FORM -->
+                <form id="signupForm" onsubmit="handleSignup(event)" class="space-y-3 hidden">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Username</label>
+                        <input type="text" id="signupUsername" required autocomplete="username" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:outline-none focus:border-pupil-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+                        <input type="password" id="signupPassword" required minlength="4" autocomplete="new-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:outline-none focus:border-pupil-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Confirm Password</label>
+                        <input type="password" id="signupPasswordConfirm" required minlength="4" autocomplete="new-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:outline-none focus:border-pupil-500">
+                    </div>
+                    <p id="signupError" class="text-xs text-rose-600 font-semibold hidden"></p>
+                    <button type="submit" class="w-full py-3 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-sm font-bold shadow-md transition-all">Create Account</button>
+                </form>
+            </div>
+            <p class="text-center text-[10px] text-slate-400 mt-4">Xogtan waxaa lagu kaydiyaa browser-kan oo keliya (local storage) — kuma jirto server dibadeed.</p>
+        </div>
+    </div>
+
+    <!-- APP SHELL: hidden until logged in -->
+    <div id="appShell" class="hidden h-full flex-col md:flex-row overflow-hidden">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-64 bg-white border-r border-slate-200/80 flex-shrink-0 flex flex-col justify-between z-20">
+        <div>
+            <!-- Zenith Brand Logo -->
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-pupil-500 to-pupil-800 flex items-center justify-center shadow-sm p-1.5">
+                        <svg viewBox="0 0 100 100" class="w-full h-full" fill="none">
+                            <path d="M62 70 L82 70 L66 42 L58 55 Z" fill="#FDBA74"/>
+                            <path d="M18 70 L50 20 L82 70 Z" fill="#FFF7ED"/>
+                            <path d="M50 20 L64 43 L57 43 L50 33 L43 43 L36 43 Z" fill="#C2410C"/>
+                            <path d="M50 8 L53 15 L60 18 L53 21 L50 28 L47 21 L40 18 L47 15 Z" fill="#FFEDD5"/>
+                        </svg>
+                    </div>
+                    <span class="font-extrabold text-xl text-slate-900 tracking-tight">Zenith</span>
+                </div>
+                <button id="mobileMenuBtn" class="md:hidden text-slate-500 hover:text-slate-800">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Menu Navigation Links -->
+            <div class="p-4">
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-3">Main Menu</p>
+                <nav id="navMenu" class="hidden md:block space-y-1">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all bg-pupil-100 text-pupil-800">
+                        <i class="fa-solid fa-grip-vertical text-pupil-600 w-5"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="switchTab('courses')" id="nav-courses" class="nav-btn flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition-all">
+                        <i class="fa-solid fa-book-open text-slate-400 w-5"></i>
+                        <span>My Courses</span>
+                    </button>
+                    <button onclick="switchTab('assignments')" id="nav-assignments" class="nav-btn flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition-all">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-list-check text-slate-400 w-5"></i>
+                            <span>Assignments</span>
+                        </div>
+                        <span id="pendingBadge" class="bg-pupil-100 text-pupil-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                    </button>
+                    <button onclick="switchTab('deadlines')" id="nav-deadlines" class="nav-btn flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition-all">
+                        <i class="fa-solid fa-calendar-check text-slate-400 w-5"></i>
+                        <span>Schedule & Deadlines</span>
+                    </button>
+                    <button onclick="switchTab('schedule')" id="nav-schedule" class="nav-btn flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition-all">
+                        <i class="fa-solid fa-calendar-days text-slate-400 w-5"></i>
+                        <span>Weekly Timetable</span>
+                    </button>
+                    <button onclick="switchTab('study')" id="nav-study" class="nav-btn flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition-all">
+                        <i class="fa-solid fa-stopwatch text-slate-400 w-5"></i>
+                        <span>Focus Timer</span>
+                    </button>
+                    <button onclick="switchTab('alarm')" id="nav-alarm" class="nav-btn flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition-all">
+                        <i class="fa-solid fa-bell text-slate-400 w-5"></i>
+                        <span>Alarm</span>
+                    </button>
+                    <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition-all">
+                        <i class="fa-solid fa-chart-pie text-slate-400 w-5"></i>
+                        <span>Analytics</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Sidebar Footer Reset Action -->
+        <div class="p-4 border-t border-slate-100 bg-slate-50/50 space-y-2">
+            <button onclick="resetDataModal()" class="w-full py-2 px-3 text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors flex items-center justify-center gap-2 font-medium">
+                <i class="fa-solid fa-arrow-rotate-right"></i> Reset My Data
+            </button>
+            <button onclick="handleLogout()" class="w-full py-2 px-3 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors flex items-center justify-center gap-2 font-medium">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
+        
+        <!-- Top Navigation Header -->
+        <header class="bg-white border-b border-slate-200/80 px-6 py-3.5 flex items-center justify-between gap-4 z-10">
+            <!-- Search Bar -->
+            <div class="relative flex-1 max-w-md hidden sm:block">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input type="text" placeholder="Search courses, lessons, instructors..." class="w-full pl-10 pr-4 py-2 bg-slate-100/80 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-pupil-500/30 transition-all">
+            </div>
+
+            <!-- User Actions & Profile -->
+            <div class="flex items-center gap-4 ml-auto">
+                <button class="relative text-slate-500 hover:text-slate-800 p-2 rounded-xl hover:bg-slate-100 transition-colors">
+                    <i class="fa-regular fa-bell text-lg"></i>
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-pupil-500 rounded-full"></span>
+                </button>
+                <div class="h-6 w-[1px] bg-slate-200"></div>
+                
+                <!-- Profile Card (dynamic per logged-in user) -->
+                <div class="flex items-center gap-3">
+                    <div id="profileAvatarImg" class="w-10 h-10 rounded-full flex items-center justify-center bg-pupil-600 text-white font-bold text-sm border-2 border-pupil-500/30 shadow-sm">U</div>
+                    <div class="hidden md:block">
+                        <h4 id="profileUsernameDisplay" class="text-xs font-bold text-slate-800 leading-tight">User</h4>
+                        <p class="text-[10px] font-semibold text-slate-400">Pro Student</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Scrollable Main Workspace -->
+        <main class="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
+
+            <!-- TAB 1: MAIN DASHBOARD TAB -->
+            <section id="tab-dashboard" class="tab-content space-y-6">
+                
+                <!-- Hero Banner for CULUSOOW -->
+                <div class="pupil-banner rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg shadow-pupil-900/10">
+                    <div class="absolute -right-10 -bottom-20 w-80 h-80 bg-pupil-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                    
+                    <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                        <div class="space-y-3 max-w-xl">
+                            <!-- Gamified Streak Badge -->
+                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-400/20 text-emerald-300 text-xs font-bold tracking-wide">
+                                <span>🔥</span> 12-DAY STREAK
+                            </div>
+                            <h2 class="text-2xl md:text-3xl font-bold tracking-tight text-white">Welcome back, <span id="heroWelcomeName">Student</span></h2>
+                            <p class="text-xs md:text-sm text-emerald-100/80 leading-relaxed">
+                                You're on a roll! You've completed 3 study goals this week. Keep up the momentum.
+                            </p>
+                            <div class="flex items-center gap-3 pt-2">
+                                <button onclick="switchTab('courses')" class="px-4 py-2.5 rounded-xl bg-pupil-500 hover:bg-pupil-600 text-white text-xs font-bold transition-all shadow-md">
+                                    Continue Learning
+                                </button>
+                                <button onclick="switchTab('deadlines')" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-all">
+                                    View Schedule
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Right Banner Summary Widget -->
+                        <div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex items-center gap-3 text-white self-stretch md:self-auto min-w-[200px]">
+                            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-chart-simple"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-emerald-200 font-medium">This Week</p>
+                                <p class="text-base font-extrabold" id="bannerHoursLearned">6.5 hrs learned</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FEATURE: TODAY'S FOCUS (Priority-first widget — reduces choice overload) -->
+                <div class="bg-white rounded-2xl border border-slate-200/70 pupil-card-shadow overflow-hidden">
+                    <div class="p-5 md:p-6 pb-4 flex items-center justify-between gap-3 border-b border-slate-100">
+                        <div>
+                            <p class="text-[10px] font-bold uppercase text-pupil-600 tracking-wider">MAANTA DIIRADDA SAAR</p>
+                            <h3 class="text-lg font-bold text-slate-900">Today's Focus</h3>
+                        </div>
+                        <span id="focusCountBadge" class="text-xs font-bold text-pupil-800 bg-pupil-100 px-3 py-1 rounded-full flex-shrink-0">
+                            0 tasks
+                        </span>
+                    </div>
+                    <div id="todaysFocusList" class="p-3 md:p-4 space-y-2">
+                        <!-- Dynamically rendered: top 3 priority tasks -->
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-r from-emerald-50 via-teal-50 to-white p-5 rounded-2xl border border-pupil-200/70 pupil-card-shadow flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div class="flex items-start gap-3.5">
+                        <div class="w-10 h-10 rounded-xl bg-pupil-600 text-white flex items-center justify-center text-lg flex-shrink-0 mt-0.5 shadow-sm">
+                            <i class="fa-solid fa-quote-left"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold uppercase text-pupil-700 tracking-wider">DAILY MOTIVATION</p>
+                            <p id="quoteText" class="text-sm font-semibold text-slate-800 italic mt-0.5">"Success is the sum of small efforts, repeated day in and day out."</p>
+                            <p id="quoteAuthor" class="text-xs text-slate-500 mt-1 font-medium">— Robert Collier</p>
+                        </div>
+                    </div>
+                    <button onclick="refreshQuote()" class="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 shadow-sm transition-all flex items-center gap-2 flex-shrink-0">
+                        <i class="fa-solid fa-arrows-rotate text-pupil-600"></i> New Quote
+                    </button>
+                </div>
+
+                <!-- 4 Key Stat Cards Row -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Stat Card 1 -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/70 pupil-card-shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-pupil-50 text-pupil-600 flex items-center justify-center text-lg">
+                                <i class="fa-regular fa-bookmark"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 id="statCoursesCount" class="text-2xl font-black text-slate-900">5</h3>
+                            <p class="text-xs font-semibold text-slate-500 mt-0.5">Core Goals & Courses</p>
+                            <span class="text-[11px] font-bold text-pupil-600 flex items-center gap-1 mt-2">
+                                <i class="fa-solid fa-check text-[9px]"></i> Excel, SQL, Python, AI, Forex
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Stat Card 2 -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/70 pupil-card-shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-pupil-50 text-pupil-600 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 id="statTodayPomodoros" class="text-2xl font-black text-slate-900">10</h3>
+                            <p class="text-xs font-semibold text-slate-500 mt-0.5">Today's Target Pomodoros</p>
+                            <span class="text-[11px] font-bold text-pupil-600 flex items-center gap-1 mt-2">
+                                <i class="fa-solid fa-stopwatch text-[9px]"></i> 25m Learn / 5m Rest
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Stat Card 3 -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/70 pupil-card-shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-pupil-50 text-pupil-600 flex items-center justify-center text-lg">
+                                <i class="fa-regular fa-clock"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 id="statHoursLearned" class="text-2xl font-black text-slate-900">120</h3>
+                            <p class="text-xs font-semibold text-slate-500 mt-0.5">Hours Learned</p>
+                            <span class="text-[11px] font-bold text-pupil-600 flex items-center gap-1 mt-2">
+                                <i class="fa-solid fa-arrow-up text-[9px]"></i> +6% this month
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Stat Card 4 -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/70 pupil-card-shadow flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 rounded-xl bg-pupil-50 text-pupil-600 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-black text-slate-900">70%</h3>
+                            <p class="text-xs font-semibold text-slate-500 mt-0.5">Avg. Target Score</p>
+                            <span class="text-[11px] font-bold text-pupil-600 flex items-center gap-1 mt-2">
+                                <i class="fa-solid fa-arrow-up text-[9px]"></i> High Consistency
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MAIN SPLIT CONTENT: Daily Timetable Widget + Courses Progress -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Left 2-Column Area: Dynamic Daily Schedule & Goals -->
+                    <div class="lg:col-span-2 space-y-6">
+
+                        <!-- FEATURE: DYNAMIC DAILY SCHEDULE VIEWER (CULUSOOW TIMETABLE) -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase text-pupil-600 tracking-wider">JADWALKA MAALINLAHA AH</p>
+                                    <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                        <i class="fa-solid fa-calendar-day text-pupil-600"></i> Daily Study & Fitness Schedule
+                                    </h3>
+                                </div>
+                                <span id="scheduleDayBadge" class="text-xs font-bold text-pupil-800 bg-pupil-100 px-3 py-1 rounded-full self-start sm:self-auto">
+                                    Today: Sabti
+                                </span>
+                            </div>
+
+                            <!-- Day Selector Buttons (Somali Days) -->
+                            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                                <button onclick="selectScheduleDay('Sabti')" class="day-tab-btn px-3 py-1.5 rounded-xl font-bold bg-pupil-600 text-white transition-all whitespace-nowrap">Sabti</button>
+                                <button onclick="selectScheduleDay('Axad')" class="day-tab-btn px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap">Axad</button>
+                                <button onclick="selectScheduleDay('Isniin')" class="day-tab-btn px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap">Isniin</button>
+                                <button onclick="selectScheduleDay('Talaado')" class="day-tab-btn px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap">Talaado</button>
+                                <button onclick="selectScheduleDay('Arbaco')" class="day-tab-btn px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap">Arbaco</button>
+                                <button onclick="selectScheduleDay('Khamiis')" class="day-tab-btn px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap">Khamiis</button>
+                                <button onclick="selectScheduleDay('Jimco')" class="day-tab-btn px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap">Jimco</button>
+                            </div>
+
+                            <!-- Daily Routine Badges (Quran & Gym) -->
+                            <div id="dayRoutinesContainer" class="flex flex-wrap gap-2 text-xs pt-1">
+                                <!-- Dynamic routines -->
+                            </div>
+
+                            <!-- Pomodoro Breakdown Table for Selected Day -->
+                            <div class="overflow-x-auto rounded-xl border border-slate-100">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-50 text-slate-400 font-bold uppercase text-[10px]">
+                                        <tr>
+                                            <th class="p-3">Subject / Activity</th>
+                                            <th class="p-3">Pomodoros</th>
+                                            <th class="p-3">Total Time</th>
+                                            <th class="p-3 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dayPomodoroTableBody" class="divide-y divide-slate-100">
+                                        <!-- Dynamic schedule rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- FEATURE 2: TODAY'S STUDY PLAN (Micro Goal Checklist) -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">DAILY CHECKLIST</p>
+                                    <h3 class="text-lg font-bold text-slate-900">Today's Micro Goals</h3>
+                                </div>
+                                <span id="studyPlanProgressText" class="text-xs font-bold text-pupil-700 bg-pupil-50 px-2.5 py-1 rounded-full border border-pupil-200/50">
+                                    0/0 completed
+                                </span>
+                            </div>
+
+                            <!-- Visual Completion Progress Bar -->
+                            <div class="w-full bg-slate-100 rounded-full h-2 mb-5 overflow-hidden">
+                                <div id="studyPlanProgressBar" class="bg-pupil-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+
+                            <!-- Input form for quick micro task -->
+                            <form onsubmit="addDailyTask(event)" class="flex gap-2 mb-4">
+                                <input type="text" id="dailyTaskInput" required placeholder="Add a quick task (e.g., Practice Python Functions 25m)..." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-pupil-500">
+                                <button type="submit" class="px-4 py-2 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1">
+                                    <i class="fa-solid fa-plus"></i> Add Goal
+                                </button>
+                            </form>
+
+                            <!-- Daily Task List Container -->
+                            <div id="dailyTaskList" class="space-y-2">
+                                <!-- Dynamic tasks rendered here -->
+                            </div>
+                        </div>
+
+                        <!-- FEATURE 3: COURSE PROGRESS GRID -->
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900">My Main Courses & Goals</h3>
+                                    <p class="text-xs text-slate-500">Excel, SQL, Python, AI & Forex Trading</p>
+                                </div>
+                                <button onclick="switchTab('courses')" class="text-xs font-bold text-pupil-600 hover:text-pupil-700 flex items-center gap-1">
+                                    View all <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
+
+                            <!-- Interactive Course Progress Cards -->
+                            <div id="continueLearningGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Dynamically Rendered Cards -->
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Right Column: Focus Timer Widget & Upcoming Deadlines -->
+                    <div class="space-y-6">
+                        
+                        <!-- FEATURE 4: FOCUS TIMER WIDGET (Main Dashboard Mini Pomodoro) -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow flex flex-col items-center text-center relative">
+                            <div class="w-full flex items-center justify-between mb-3">
+                                <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">FOCUS TIMER</p>
+                                <button onclick="switchTab('study')" class="text-xs font-semibold text-pupil-600 hover:underline">Full Mode</button>
+                            </div>
+
+                            <div class="w-28 h-28 rounded-full border-4 border-pupil-500/20 bg-pupil-50/50 flex flex-col items-center justify-center my-2 shadow-inner">
+                                <span id="dashTimerDisplay" class="text-2xl font-black text-slate-900 font-mono tracking-wider">25:00</span>
+                                <span id="dashTimerModeBadge" class="text-[9px] font-bold uppercase tracking-wider text-pupil-700 mt-0.5">STUDY</span>
+                            </div>
+
+                            <p id="dashTimerStatus" class="text-xs font-semibold text-slate-400 mb-4">Ready for a focus sprint?</p>
+
+                            <div class="flex items-center gap-2 w-full">
+                                <button id="dashTimerToggleBtn" onclick="toggleTimer()" class="flex-1 py-2.5 rounded-xl bg-pupil-600 hover:bg-pupil-700 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-play"></i> Start Sprint
+                                </button>
+                                <button onclick="resetTimer()" class="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs border border-slate-200 transition-all">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- FEATURE: LIVE CLOCK & NEXT ALARM PREVIEW -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">SAACADDA</p>
+                                <button onclick="switchTab('alarm')" class="text-xs font-semibold text-pupil-600 hover:underline">Manage</button>
+                            </div>
+
+                            <!-- Live Digital Clock -->
+                            <div class="text-center py-2 mb-4">
+                                <span id="liveClockDisplay" class="text-3xl font-black text-slate-900 font-mono tracking-wider">--:--:--</span>
+                                <p id="liveClockDate" class="text-[11px] text-slate-400 font-semibold mt-0.5">—</p>
+                            </div>
+
+                            <!-- Next Alarm Preview -->
+                            <div id="nextAlarmPreview" class="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-pupil-50 text-pupil-600 flex items-center justify-center text-sm flex-shrink-0">
+                                    <i class="fa-solid fa-bell"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-bold text-slate-800">Alarm lama dejin</p>
+                                    <p class="text-[11px] text-slate-400">Taabo "Manage" si aad u darto</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- FEATURE 5: UPCOMING DEADLINES WIDGET -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">SCHEDULE</p>
+                                    <h4 class="font-bold text-slate-900">Upcoming Deadlines</h4>
+                                </div>
+                                <button onclick="switchTab('deadlines')" class="text-xs font-semibold text-pupil-600 hover:underline">View All</button>
+                            </div>
+                            <div id="upcomingDeadlinesList" class="space-y-3">
+                                <!-- Dynamic Deadlines -->
+                            </div>
+                        </div>
+
+                        <!-- Mini Calendar Widget -->
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">CALENDAR</p>
+                                    <h4 class="font-bold text-slate-900">August 2026</h4>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs text-slate-400">
+                                    <button class="hover:text-slate-800 p-1"><i class="fa-solid fa-chevron-left"></i></button>
+                                    <button class="hover:text-slate-800 p-1"><i class="fa-solid fa-chevron-right"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-slate-400 mb-2">
+                                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                            </div>
+                            <div class="grid grid-cols-7 text-center text-xs gap-y-2 font-medium text-slate-700">
+                                <span class="text-slate-300">28</span><span class="text-slate-300">29</span><span class="text-slate-300">30</span><span class="text-slate-300">31</span>
+                                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
+                                <span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span>
+                                <span class="w-6 h-6 rounded-full bg-pupil-600 text-white flex items-center justify-center mx-auto font-bold shadow-sm">15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- TAB 2: MY COURSES TAB -->
+            <section id="tab-courses" class="tab-content hidden space-y-6">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 pupil-card-shadow flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Course Management & Progress</h3>
+                        <p class="text-xs text-slate-500">Manage your enrolled university modules and instructor targets.</p>
+                    </div>
+                    <button onclick="openModal('addCourseModal')" class="px-4 py-2.5 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Add New Course
+                    </button>
+                </div>
+
+                <!-- Course Cards Grid -->
+                <div id="coursesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Dynamic Content -->
+                </div>
+            </section>
+
+            <!-- TAB 3: ASSIGNMENTS TAB -->
+            <section id="tab-assignments" class="tab-content hidden space-y-6">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 pupil-card-shadow flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="filterAssignments('all')" class="assign-filter-btn px-4 py-2 rounded-xl text-xs font-bold bg-pupil-600 text-white transition-all">All Tasks</button>
+                        <button onclick="filterAssignments('Pending')" class="assign-filter-btn px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Pending</button>
+                        <button onclick="filterAssignments('Submitted')" class="assign-filter-btn px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Submitted</button>
+                    </div>
+                    <button onclick="openModal('addAssignmentModal')" class="px-4 py-2.5 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> New Assignment
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/80 pupil-card-shadow overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-slate-700">
+                            <thead class="bg-slate-50 text-[11px] uppercase text-slate-400 font-bold border-b border-slate-200/80">
+                                <tr>
+                                    <th class="p-4">Assignment Name</th>
+                                    <th class="p-4">Course</th>
+                                    <th class="p-4">Deadline</th>
+                                    <th class="p-4">Priority</th>
+                                    <th class="p-4">Status</th>
+                                    <th class="p-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignmentsTableBody" class="divide-y divide-slate-100">
+                                <!-- Dynamic Assignment Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: DEADLINES & SCHEDULE TAB -->
+            <section id="tab-deadlines" class="tab-content hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/80 pupil-card-shadow">
+                    <h3 class="text-xl font-bold text-slate-900 mb-1">Deadlines Timeline & Live Countdown</h3>
+                    <p class="text-xs text-slate-500 mb-6">Real-time countdown timer to help CULUSOOW stay ahead of all submission dates.</p>
+
+                    <div id="deadlinesTimeline" class="space-y-4">
+                        <!-- Dynamic Content -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: WEEKLY TIMETABLE TAB (Somali Schedule) -->
+            <section id="tab-schedule" class="tab-content hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/80 pupil-card-shadow space-y-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-900">Full Weekly Study & Fitness Timetable</h3>
+                            <p class="text-xs text-slate-500">Overview of CULUSOOW's daily routine: Hisib Quran, Gym, English, AI, Excel, Python, SQL, Forex & Tafsiir.</p>
+                        </div>
+                        <div class="flex items-center gap-2 bg-pupil-50 text-pupil-800 px-3.5 py-2 rounded-xl text-xs font-bold border border-pupil-200/60">
+                            <i class="fa-solid fa-stopwatch text-pupil-600"></i> 1 Pomodoro = 25m Learn + 5m Rest
+                        </div>
+                    </div>
+
+                    <!-- Complete Weekly Matrix Cards -->
+                    <div id="fullWeeklyMatrixGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Dynamic Day Cards -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 6: POMODORO TIMER TAB -->
+            <section id="tab-study" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Pomodoro Timer Main Display -->
+                    <div class="lg:col-span-2 bg-white p-8 rounded-2xl border border-slate-200/80 pupil-card-shadow flex flex-col items-center justify-center text-center relative overflow-hidden">
+                        <span id="timerModeText" class="px-4 py-1.5 rounded-full bg-pupil-50 text-pupil-700 text-xs font-bold tracking-wider uppercase mb-4">
+                            Focus Area (Study - 25 Min)
+                        </span>
+
+                        <div class="my-6 relative flex items-center justify-center">
+                            <svg class="w-64 h-64 transform -rotate-90">
+                                <circle cx="128" cy="128" r="110" stroke="currentColor" stroke-width="12" class="text-slate-100" fill="transparent" />
+                                <circle id="timerProgressCircle" cx="128" cy="128" r="110" stroke="currentColor" stroke-width="12" class="text-pupil-600 transition-all duration-1000" fill="transparent" stroke-dasharray="691" stroke-dashoffset="0" stroke-linecap="round" />
+                            </svg>
+                            <div class="absolute flex flex-col items-center">
+                                <span id="timerDisplay" class="text-5xl font-black text-slate-900 tracking-wider font-mono">25:00</span>
+                                <span id="timerStatus" class="text-xs font-semibold text-slate-400 mt-2">Get ready to focus</span>
+                            </div>
+                        </div>
+
+                        <!-- Timer Controls -->
+                        <div class="flex items-center gap-4 mt-2">
+                            <button id="timerToggleBtn" onclick="toggleTimer()" class="w-14 h-14 rounded-2xl bg-pupil-600 hover:bg-pupil-700 text-white flex items-center justify-center text-xl shadow-lg shadow-pupil-600/30 transition-all">
+                                <i class="fa-solid fa-play"></i>
+                            </button>
+                            <button onclick="resetTimer()" class="w-12 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-lg border border-slate-200 transition-all">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                            <button onclick="switchTimerMode()" class="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-200 transition-all">
+                                5 Min Break Mode
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Side Stats & Ergonomic Advice -->
+                    <div class="space-y-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 pupil-card-shadow">
+                            <h4 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                <i class="fa-solid fa-trophy text-amber-500"></i> Today's Study Stats
+                            </h4>
+                            <div class="space-y-4 text-sm">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-500 font-medium">Completed Sessions:</span>
+                                    <span id="completedSessionsCount" class="font-extrabold text-slate-800">0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-500 font-medium">Total Focus Time:</span>
+                                    <span id="todayStudyMinutes" class="font-extrabold text-pupil-600">0 mins</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-pupil-900 text-white p-6 rounded-2xl shadow-md">
+                            <h4 class="font-bold mb-2 flex items-center gap-2 text-pupil-200">
+                                <i class="fa-solid fa-brain"></i> Pomodoro UX Principle
+                            </h4>
+                            <p class="text-xs text-pupil-100/80 leading-relaxed">
+                                Work for 25 minutes with zero distraction, then take a 5-minute break. This prevents mental fatigue and keeps cognitive retention at peak levels!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 7: ALARM TAB -->
+            <section id="tab-alarm" class="tab-content hidden space-y-6">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase text-pupil-600 tracking-wider">RING ILAA AAD JOOJISO</p>
+                        <h2 class="text-xl font-bold text-slate-900">Alarms</h2>
+                    </div>
+                    <button onclick="openAddAlarmModal()" class="px-4 py-2.5 rounded-xl bg-pupil-600 hover:bg-pupil-700 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Add Alarm
+                    </button>
+                </div>
+
+                <div id="alarmCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <!-- Dynamically rendered dark alarm cards -->
+                </div>
+            </section>
+
+            <!-- TAB 8: ANALYTICS TAB -->
+            <section id="tab-analytics" class="tab-content hidden space-y-6">
+                <div>
+                    <p class="text-[10px] font-bold uppercase text-pupil-600 tracking-wider">ANALYTICS</p>
+                    <h2 class="text-xl font-bold text-slate-900">Falanqaynta Horumarkaaga</h2>
+                    <p class="text-xs text-slate-500 mt-1">Todobaadkan lasoo dhaafay — sida aad u shaqaysay maalin kasta.</p>
+                </div>
+
+                <!-- Summary Stat Row -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                        <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Todobaadkan</p>
+                        <h3 id="analyticsWeekMinutes" class="text-2xl font-black text-slate-900">0 min</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Wakhti Focus ah</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                        <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Shaqooyin</p>
+                        <h3 id="analyticsWeekTasks" class="text-2xl font-black text-slate-900">0</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">La dhammeeyay todobaadkan</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                        <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Streak</p>
+                        <h3 id="analyticsStreak" class="text-2xl font-black text-slate-900">0 days</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Maalmo isku xigta oo firfircoon</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                        <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1">Celceliska</p>
+                        <h3 id="analyticsAvgMinutes" class="text-2xl font-black text-slate-900">0 min</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Maalin kasta (7 maalmood)</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Study Minutes Chart -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                        <h4 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-clock text-pupil-600"></i> Wakhtiga Focus-ka (7 maalmood)
+                        </h4>
+                        <canvas id="analyticsMinutesChart" height="180"></canvas>
+                    </div>
+
+                    <!-- Tasks Completed Chart -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                        <h4 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-pupil-600"></i> Shaqooyinka la Dhammeeyay (7 maalmood)
+                        </h4>
+                        <canvas id="analyticsTasksChart" height="180"></canvas>
+                    </div>
+                </div>
+
+                <!-- Course Progress Overview -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                    <h4 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-graduation-cap text-pupil-600"></i> Horumarka Koorsooyinka
+                    </h4>
+                    <div id="analyticsCourseProgress" class="space-y-4">
+                        <!-- Dynamically rendered -->
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+    </div>
+    <!-- /#appShell -->
+
+    <!-- MODAL 1: ADD ASSIGNMENT -->
+    <div id="addAssignmentModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-900">Add New Assignment</h3>
+                <button onclick="closeModal('addAssignmentModal')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="addAssignmentForm" onsubmit="saveAssignment(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Assignment Title</label>
+                    <input type="text" id="assignTitle" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-pupil-500" placeholder="e.g., Advanced React Patterns Lab">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Course</label>
+                    <select id="assignCourse" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-pupil-500">
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Deadline Date & Time</label>
+                    <input type="datetime-local" id="assignDeadline" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-pupil-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Priority</label>
+                    <select id="assignPriority" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-pupil-500">
+                        <option value="High">High Priority</option>
+                        <option value="Medium" selected>Medium Priority</option>
+                        <option value="Low">Low Priority</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('addAssignmentModal')" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold shadow-md">Add Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD ALARM -->
+    <div id="addAlarmModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-900">Add Alarm</h3>
+                <button onclick="stopPreviewSound(); closeModal('addAlarmModal')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="addAlarmForm" onsubmit="addAlarm(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Time</label>
+                    <input type="time" id="alarmTimeInput" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:outline-none focus:border-pupil-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Label</label>
+                    <input type="text" id="alarmLabelInput" placeholder="e.g. Good morning" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-pupil-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Sound</label>
+                    <div class="flex items-center gap-2">
+                        <select id="alarmSoundSelect" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-pupil-500">
+                            <option value="classic">Classic Beep</option>
+                            <option value="digital">Digital Alarm</option>
+                            <option value="chime">Gentle Chime</option>
+                            <option value="pulse">Urgent Pulse</option>
+                            <option value="marimba">Marimba</option>
+                            <option value="radar">Radar Ping</option>
+                        </select>
+                        <button type="button" onclick="previewAlarmSound(document.getElementById('alarmSoundSelect').value)" class="px-3.5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold flex items-center gap-1.5 flex-shrink-0 transition-all">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">Repeat (bannaan = hal mar)</label>
+                    <div id="alarmDaySelector" class="flex items-center gap-1.5">
+                        <!-- Day chip buttons injected by JS -->
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="stopPreviewSound(); closeModal('addAlarmModal')" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold shadow-md">Save Alarm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ALARM RING OVERLAY (stays until user dismisses) -->
+    <div id="alarmRingOverlay" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60] hidden">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl border border-slate-200 text-center space-y-5">
+            <div class="w-20 h-20 mx-auto rounded-full bg-pupil-50 text-pupil-600 flex items-center justify-center text-3xl alarm-ring-pulse">
+                <i class="fa-solid fa-bell alarm-ring-icon"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold uppercase text-pupil-600 tracking-wider">ALARM-KA WUU DHACAY</p>
+                <h3 id="alarmRingTime" class="text-3xl font-black text-slate-900 font-mono mt-1">00:00</h3>
+                <p id="alarmRingLabel" class="text-sm text-slate-500 font-semibold mt-2">Waqtigii aad dooratay ayaa gaartay!</p>
+            </div>
+            <button onclick="stopAlarmRing()" class="w-full py-3.5 rounded-xl bg-pupil-600 hover:bg-pupil-700 text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2">
+                <i class="fa-solid fa-stop"></i> Joojiso Alarm-ka
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL 2: SUBMIT ASSIGNMENT -->
+    <div id="submitAssignmentModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-900">Submit Assignment</h3>
+                <button onclick="closeModal('submitAssignmentModal')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="submitAssignmentForm" onsubmit="processSubmission(event)" class="space-y-4">
+                <input type="hidden" id="submitAssignId">
+                <div>
+                    <p id="submitAssignTitleDisplay" class="text-sm font-bold text-pupil-700 mb-2"></p>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Submission Notes / Link (Google Drive, GitHub)</label>
+                    <textarea id="submissionNotes" required rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-pupil-500" placeholder="Paste your submission link or work summary..."></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('submitAssignmentModal')" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold shadow-md">Submit Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: ADD COURSE -->
+    <div id="addCourseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-900">Add New Course</h3>
+                <button onclick="closeModal('addCourseModal')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="addCourseForm" onsubmit="saveCourse(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Course Title</label>
+                    <input type="text" id="courseName" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-pupil-500" placeholder="e.g. Data Science with Python">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Instructor Name</label>
+                    <input type="text" id="courseInstructor" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-pupil-500" placeholder="e.g. Dr. Priya Sharma">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Category Badge</label>
+                        <select id="courseCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800">
+                            <option value="Development">Development</option>
+                            <option value="Design">Design</option>
+                            <option value="Data">Data</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Initial Progress (%)</label>
+                        <input type="number" id="courseProgress" min="0" max="100" value="25" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('addCourseModal')" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-200">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold shadow-md">Add Course</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <script>
+        // Motivational Quotes Database
+        const motivationalQuotes = [
+            { quote: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
+            { quote: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+            { quote: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+            { quote: "Focus is a muscle. The more you practice it, the easier study gets.", author: "Cal Newport" },
+            { quote: "Action is the foundational key to all success.", author: "Pablo Picasso" },
+            { quote: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" }
+        ];
+
+        // CULUSOOW Schedule Data (Based on exact user image)
+        const weeklyTimetableData = {
+            'Sabti': {
+                routines: ['Hisib Quran', 'Gym'],
+                pomodoros: [
+                    { subject: 'English', count: 1, icon: 'fa-language', color: 'text-blue-600' },
+                    { subject: 'AI (Artificial Intelligence)', count: 2, icon: 'fa-robot', color: 'text-purple-600' },
+                    { subject: 'Tafsiir', count: 1, icon: 'fa-book-quran', color: 'text-emerald-600' },
+                    { subject: 'Python', count: 3, icon: 'fa-code', color: 'text-amber-600' },
+                    { subject: 'SQL', count: 3, icon: 'fa-database', color: 'text-indigo-600' }
+                ]
+            },
+            'Axad': {
+                routines: ['Hisib Quran', 'Gym'],
+                pomodoros: [
+                    { subject: 'English', count: 1, icon: 'fa-language', color: 'text-blue-600' },
+                    { subject: 'AI (Artificial Intelligence)', count: 2, icon: 'fa-robot', color: 'text-purple-600' },
+                    { subject: 'Tafsiir', count: 1, icon: 'fa-book-quran', color: 'text-emerald-600' },
+                    { subject: 'Python', count: 3, icon: 'fa-code', color: 'text-amber-600' },
+                    { subject: 'SQL', count: 3, icon: 'fa-database', color: 'text-indigo-600' }
+                ]
+            },
+            'Isniin': {
+                routines: ['Hisib Quran', 'Gym'],
+                pomodoros: [
+                    { subject: 'English', count: 1, icon: 'fa-language', color: 'text-blue-600' },
+                    { subject: 'Excel', count: 2, icon: 'fa-file-excel', color: 'text-emerald-600' },
+                    { subject: 'Tafsiir', count: 1, icon: 'fa-book-quran', color: 'text-emerald-600' },
+                    { subject: 'Forex Trading', count: 3, icon: 'fa-chart-line', color: 'text-amber-600' },
+                    { subject: 'Excel', count: 3, icon: 'fa-file-excel', color: 'text-emerald-600' }
+                ]
+            },
+            'Talaado': {
+                routines: ['Hisib Quran', 'Gym'],
+                pomodoros: [
+                    { subject: 'English', count: 1, icon: 'fa-language', color: 'text-blue-600' },
+                    { subject: 'Excel', count: 2, icon: 'fa-file-excel', color: 'text-emerald-600' },
+                    { subject: 'Python', count: 1, icon: 'fa-code', color: 'text-amber-600' },
+                    { subject: 'Forex Trading', count: 3, icon: 'fa-chart-line', color: 'text-amber-600' },
+                    { subject: 'Excel', count: 3, icon: 'fa-file-excel', color: 'text-emerald-600' }
+                ]
+            },
+            'Arbaco': {
+                routines: ['Hisib Quran', 'Gym'],
+                pomodoros: [
+                    { subject: 'English', count: 1, icon: 'fa-language', color: 'text-blue-600' },
+                    { subject: 'Python', count: 2, icon: 'fa-code', color: 'text-amber-600' },
+                    { subject: 'Excel', count: 1, icon: 'fa-file-excel', color: 'text-emerald-600' },
+                    { subject: 'Forex Trading', count: 3, icon: 'fa-chart-line', color: 'text-amber-600' },
+                    { subject: 'SQL', count: 3, icon: 'fa-database', color: 'text-indigo-600' }
+                ]
+            },
+            'Khamiis': {
+                routines: ['Hisib Quran'],
+                pomodoros: [
+                    { subject: 'English', count: 1, icon: 'fa-language', color: 'text-blue-600' },
+                    { subject: 'Excel', count: 1, icon: 'fa-file-excel', color: 'text-emerald-600' },
+                    { subject: 'Forex Trading', count: 3, icon: 'fa-chart-line', color: 'text-amber-600' },
+                    { subject: 'SQL', count: 3, icon: 'fa-database', color: 'text-indigo-600' }
+                ]
+            },
+            'Jimco': {
+                routines: ['Hisib Quran'],
+                pomodoros: [
+                    { subject: 'Tafsiir', count: 1, icon: 'fa-book-quran', color: 'text-emerald-600' },
+                    { subject: 'Forex Trading', count: 3, icon: 'fa-chart-line', color: 'text-amber-600' }
+                ]
+            }
+        };
+
+        // Default initial data tailored to user courses
+        // Demo/reference data structure (kept only for reference; NOT auto-loaded for new accounts)
+        const defaultData = {
+            courses: [
+                { id: 'c1', name: 'Excel Advanced & Dashboards', category: 'Data', instructor: 'Master Trainer', progress: 45, image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&auto=format&fit=crop&q=80' },
+                { id: 'c2', name: 'SQL Database & Analytics', category: 'Data', instructor: 'Database Pro', progress: 60, image: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=400&auto=format&fit=crop&q=80' },
+                { id: 'c3', name: 'Python Programming & Scripts', category: 'Development', instructor: 'Python Specialist', progress: 50, image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&auto=format&fit=crop&q=80' },
+                { id: 'c4', name: 'Artificial Intelligence (AI) & ML', category: 'Development', instructor: 'AI Researcher', progress: 30, image: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=400&auto=format&fit=crop&q=80' },
+                { id: 'c5', name: 'Forex Trading & Market Analysis', category: 'Trading', instructor: 'Pro Trader', progress: 70, image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&auto=format&fit=crop&q=80' }
+            ],
+            assignments: [
+                { id: 'a1', title: 'Python Data Scraping Project', courseId: 'c3', deadline: getFutureDate(2), priority: 'High', status: 'Pending', notes: '' },
+                { id: 'a2', title: 'SQL Joins & Aggregations Lab', courseId: 'c2', deadline: getFutureDate(4), priority: 'Medium', status: 'Pending', notes: '' },
+                { id: 'a3', title: 'Excel Financial Modeling Sheet', courseId: 'c1', deadline: getFutureDate(-1), priority: 'High', status: 'Submitted', notes: 'Completed' }
+            ],
+            dailyTasks: [
+                { id: 'dt1', title: 'Hisib Quran Morning Session', done: true },
+                { id: 'dt2', title: 'English Practice (1 Pomodoro = 25m)', done: true },
+                { id: 'dt3', title: 'Gym Workout Session', done: false },
+                { id: 'dt4', title: 'AI / Python Study Sprint (3 Pomodoros)', done: false }
+            ],
+            studyStats: { totalMinutes: 390, completedSessions: 15 },
+            alarms: [],
+            history: {}
+        };
+
+        // Truly empty starting point for every NEW account (per user's requirement)
+        const emptyData = {
+            courses: [],
+            assignments: [],
+            dailyTasks: [],
+            studyStats: { totalMinutes: 0, completedSessions: 0 },
+            alarms: [],
+            history: {}
+        };
+
+        function getFutureDate(daysToAdd) {
+            const date = new Date();
+            date.setDate(date.getDate() + daysToAdd);
+            date.setHours(23, 59, 0, 0);
+            return date.toISOString().slice(0, 16);
+        }
+
+        let appState = { courses: [], assignments: [], dailyTasks: [], studyStats: {}, alarms: [], history: {} };
+        let selectedScheduleDay = 'Sabti';
+
+        // Pomodoro State
+        let timerInterval = null;
+        let timerSeconds = 25 * 60;
+        let totalTimerSeconds = 25 * 60;
+        let isTimerRunning = false;
+        let timerMode = 'work';
+
+        // ============ MULTI-USER AUTH (client-side, per-browser only — see note below) ============
+        // IMPORTANT: This app has no server/database. "Accounts" are stored in THIS browser's
+        // localStorage. Each account's data is namespaced by username so multiple people using
+        // the SAME device/browser get separate, isolated data. It does NOT sync across devices.
+        const ACCOUNTS_KEY = 'pupil_accounts_v1';
+        const SESSION_KEY = 'pupil_session_v1';
+        let currentUsername = null; // lowercase key used for storage
+
+        function storageKeyFor(userKey) {
+            return 'pupil_data_' + userKey;
+        }
+
+        async function hashPassword(password) {
+            const enc = new TextEncoder().encode('pupil_salt_v1_' + password);
+            const buf = await crypto.subtle.digest('SHA-256', enc);
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function getAccounts() {
+            try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {}; }
+            catch (e) { return {}; }
+        }
+
+        function saveAccounts(accounts) {
+            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+        }
+
+        function switchAuthTab(tab) {
+            const isLogin = tab === 'login';
+            document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
+            document.getElementById('signupForm').classList.toggle('hidden', isLogin);
+            document.getElementById('authTabLoginBtn').className = `flex-1 py-2 rounded-lg transition-all ${isLogin ? 'bg-white text-pupil-700 shadow-sm' : 'text-slate-500'}`;
+            document.getElementById('authTabSignupBtn').className = `flex-1 py-2 rounded-lg transition-all ${!isLogin ? 'bg-white text-pupil-700 shadow-sm' : 'text-slate-500'}`;
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('signupError').classList.add('hidden');
+        }
+
+        async function handleSignup(e) {
+            e.preventDefault();
+            const username = document.getElementById('signupUsername').value.trim();
+            const pass = document.getElementById('signupPassword').value;
+            const confirmPass = document.getElementById('signupPasswordConfirm').value;
+            const errEl = document.getElementById('signupError');
+            errEl.classList.add('hidden');
+
+            if (!username) return;
+            if (pass !== confirmPass) {
+                errEl.innerText = "Password-yadu isku mid ma aha.";
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            const accounts = getAccounts();
+            const key = username.toLowerCase();
+            if (accounts[key]) {
+                errEl.innerText = "Username-kan horey ayaa loo isticmaalay. Isku day mid kale.";
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            const passwordHash = await hashPassword(pass);
+            accounts[key] = { username, passwordHash, createdAt: new Date().toISOString() };
+            saveAccounts(accounts);
+
+            // Brand-new account starts with EMPTY data — never demo data
+            localStorage.setItem(storageKeyFor(key), JSON.stringify(JSON.parse(JSON.stringify(emptyData))));
+
+            loginSuccess(username, key);
+            showToast(`Ku soo dhawoow, ${username}!`, "success");
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const pass = document.getElementById('loginPassword').value;
+            const errEl = document.getElementById('loginError');
+            errEl.classList.add('hidden');
+
+            const accounts = getAccounts();
+            const key = username.toLowerCase();
+            const account = accounts[key];
+            if (!account) {
+                errEl.innerText = "Username lama helin. Fadlan samee account cusub.";
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            const passwordHash = await hashPassword(pass);
+            if (passwordHash !== account.passwordHash) {
+                errEl.innerText = "Password-ku waa qalad.";
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            loginSuccess(account.username, key);
+        }
+
+        function loginSuccess(displayUsername, key) {
+            currentUsername = key;
+            localStorage.setItem(SESSION_KEY, key);
+            applyLoggedInUI(displayUsername);
+            bootApp();
+        }
+
+        function applyLoggedInUI(displayUsername) {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('appShell').classList.remove('hidden');
+            document.getElementById('appShell').classList.add('flex');
+            document.getElementById('profileUsernameDisplay').innerText = displayUsername;
+            document.getElementById('profileAvatarImg').innerText = displayUsername.charAt(0).toUpperCase();
+            document.getElementById('heroWelcomeName').innerText = displayUsername;
+        }
+
+        function handleLogout() {
+            if (!confirm("Ma hubtaa inaad ka baxeyso account-kaaga? Xogtaadu waa sii kaydsanaan doontaa.")) return;
+            if (isTimerRunning) { clearInterval(timerInterval); isTimerRunning = false; }
+            if (isAlarmRinging) { stopAlarmRing(); }
+            localStorage.removeItem(SESSION_KEY);
+            currentUsername = null;
+            document.getElementById('appShell').classList.add('hidden');
+            document.getElementById('appShell').classList.remove('flex');
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('loginForm').reset();
+            document.getElementById('signupForm').reset();
+            switchAuthTab('login');
+        }
+
+        function bootApp() {
+            detectCurrentDay();
+            loadState();
+            renderAll();
+            renderAlarmCards();
+            startDeadlineCountdownInterval();
+            startLiveClock();
+        }
+        // ============ END MULTI-USER AUTH ============
+
+        window.onload = function() {
+            setupMobileMenu();
+            const savedSession = localStorage.getItem(SESSION_KEY);
+            if (savedSession) {
+                const accounts = getAccounts();
+                const account = accounts[savedSession];
+                if (account) {
+                    currentUsername = savedSession;
+                    applyLoggedInUI(account.username);
+                    bootApp();
+                }
+            }
+            // If no valid session, the auth screen (visible by default) stays up.
+        };
+
+        function detectCurrentDay() {
+            const daysMap = ['Jimco', 'Sabti', 'Axad', 'Isniin', 'Talaado', 'Arbaco', 'Khamiis']; // standard JS day index mapping adjusted
+            const dayIdx = new Date().getDay(); // 0 = Sun, 1 = Mon, ...
+            const dayNames = ['Axad', 'Isniin', 'Talaado', 'Arbaco', 'Khamiis', 'Jimco', 'Sabti'];
+            selectedScheduleDay = dayNames[dayIdx] || 'Sabti';
+        }
+
+        function loadState() {
+            if (!currentUsername) return;
+            const saved = localStorage.getItem(storageKeyFor(currentUsername));
+            if (saved) {
+                try {
+                    appState = JSON.parse(saved);
+                    if (!appState.dailyTasks) appState.dailyTasks = [];
+                    if (!appState.alarms) appState.alarms = [];
+                    if (!appState.history) appState.history = {};
+                    if (!appState.studyStats) appState.studyStats = { totalMinutes: 0, completedSessions: 0 };
+                    if (!appState.courses) appState.courses = [];
+                    if (!appState.assignments) appState.assignments = [];
+                } catch (e) {
+                    appState = JSON.parse(JSON.stringify(emptyData));
+                }
+            } else {
+                appState = JSON.parse(JSON.stringify(emptyData));
+                saveState();
+            }
+        }
+
+        function saveState() {
+            if (!currentUsername) return;
+            localStorage.setItem(storageKeyFor(currentUsername), JSON.stringify(appState));
+        }
+
+        function resetDataModal() {
+            if (confirm("Ma hubtaa inaad rabto inaad nadiifiso xogtaada oo dhan (courses, assignments, alarms, taariikhda)? Tallaabadan lama soo celin karo.")) {
+                appState = JSON.parse(JSON.stringify(emptyData));
+                saveState();
+                renderAll();
+                renderAlarmCards();
+                showToast("Xogtaadu waa la nadiifiyay.", "info");
+            }
+        }
+
+        // ---- Daily activity log powering the Analytics tab ----
+        function todayKey() {
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        function logDailyActivity({ minutes = 0, sessions = 0, tasks = 0 }) {
+            if (!currentUsername) return;
+            if (!appState.history) appState.history = {};
+            const key = todayKey();
+            if (!appState.history[key]) appState.history[key] = { minutes: 0, sessions: 0, tasks: 0 };
+            appState.history[key].minutes += minutes;
+            appState.history[key].sessions += sessions;
+            appState.history[key].tasks += tasks;
+            if (appState.history[key].tasks < 0) appState.history[key].tasks = 0;
+            if (appState.history[key].minutes < 0) appState.history[key].minutes = 0;
+            renderAnalytics();
+        }
+
+        let minutesChartInstance = null;
+        let tasksChartInstance = null;
+
+        function renderAnalytics() {
+            if (!currentUsername) return;
+            if (!appState.history) appState.history = {};
+
+            const days = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+                const entry = appState.history[key] || { minutes: 0, sessions: 0, tasks: 0 };
+                days.push({ key, label, ...entry });
+            }
+
+            const weekMinutes = days.reduce((s, d) => s + d.minutes, 0);
+            const weekTasks = days.reduce((s, d) => s + d.tasks, 0);
+            const avgMinutes = Math.round(weekMinutes / 7);
+
+            let streak = 0;
+            for (let i = days.length - 1; i >= 0; i--) {
+                if (days[i].minutes > 0 || days[i].tasks > 0) streak++;
+                else break;
+            }
+
+            const elMin = document.getElementById('analyticsWeekMinutes');
+            const elTasks = document.getElementById('analyticsWeekTasks');
+            const elStreak = document.getElementById('analyticsStreak');
+            const elAvg = document.getElementById('analyticsAvgMinutes');
+            if (elMin) elMin.innerText = `${weekMinutes} min`;
+            if (elTasks) elTasks.innerText = `${weekTasks}`;
+            if (elStreak) elStreak.innerText = `${streak} days`;
+            if (elAvg) elAvg.innerText = `${avgMinutes} min`;
+
+            renderAnalyticsCharts(days);
+            renderAnalyticsCourseProgress();
+        }
+
+        function renderAnalyticsCharts(days) {
+            if (typeof Chart === 'undefined') return;
+            const minutesCanvas = document.getElementById('analyticsMinutesChart');
+            const tasksCanvas = document.getElementById('analyticsTasksChart');
+            if (!minutesCanvas || !tasksCanvas) return;
+
+            const labels = days.map(d => d.label);
+            const minutesData = days.map(d => d.minutes);
+            const tasksData = days.map(d => d.tasks);
+
+            if (minutesChartInstance) minutesChartInstance.destroy();
+            minutesChartInstance = new Chart(minutesCanvas, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Minutes', data: minutesData, backgroundColor: '#EA580C', borderRadius: 6 }] },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } }, responsive: true, maintainAspectRatio: false }
+            });
+
+            if (tasksChartInstance) tasksChartInstance.destroy();
+            tasksChartInstance = new Chart(tasksCanvas, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Tasks', data: tasksData, backgroundColor: '#9A3412', borderRadius: 6 }] },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function renderAnalyticsCourseProgress() {
+            const container = document.getElementById('analyticsCourseProgress');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!appState.courses || appState.courses.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic">Weli koorso lama darin.</p>`;
+                return;
+            }
+            appState.courses.forEach(c => {
+                const row = document.createElement('div');
+                row.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-slate-700">${c.name}</span>
+                        <span class="text-xs font-bold text-pupil-600">${c.progress}%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div class="bg-pupil-500 h-2 rounded-full" style="width:${c.progress}%"></div>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function refreshQuote() {
+            const random = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
+            document.getElementById('quoteText').innerText = `"${random.quote}"`;
+            document.getElementById('quoteAuthor').innerText = `— ${random.author}`;
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('bg-pupil-100', 'text-pupil-800');
+                el.classList.add('text-slate-600');
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-pupil-100', 'text-pupil-800');
+                activeBtn.classList.remove('text-slate-600');
+            }
+
+            const navMenu = document.getElementById('navMenu');
+            if (!navMenu.classList.contains('hidden') && window.innerWidth < 768) {
+                navMenu.classList.add('hidden');
+            }
+        }
+
+        function setupMobileMenu() {
+            document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+                document.getElementById('navMenu').classList.toggle('hidden');
+            });
+        }
+
+        function renderAll() {
+            renderDailyStudyPlan();
+            renderDailyScheduleWidget();
+            renderFullWeeklyMatrix();
+            renderDashboardContinueLearning();
+            renderTodaysFocus();
+            renderUpcomingDeadlinesWidget();
+            renderCourses();
+            renderAssignments();
+            renderDeadlinesTab();
+            updateCourseSelectOptions();
+            updateStatsHeader();
+            updateTimerUI();
+            renderAnalytics();
+        }
+
+        function selectScheduleDay(dayName) {
+            selectedScheduleDay = dayName;
+            document.querySelectorAll('.day-tab-btn').forEach(btn => {
+                if (btn.innerText.trim() === dayName) {
+                    btn.className = 'day-tab-btn px-3 py-1.5 rounded-xl font-bold bg-pupil-600 text-white transition-all whitespace-nowrap';
+                } else {
+                    btn.className = 'day-tab-btn px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap';
+                }
+            });
+            renderDailyScheduleWidget();
+        }
+
+        function renderDailyScheduleWidget() {
+            const data = weeklyTimetableData[selectedScheduleDay] || weeklyTimetableData['Sabti'];
+            document.getElementById('scheduleDayBadge').innerText = `Maalinta: ${selectedScheduleDay}`;
+
+            // Render Routine Badges
+            const routinesContainer = document.getElementById('dayRoutinesContainer');
+            routinesContainer.innerHTML = '';
+            
+            data.routines.forEach(r => {
+                const badge = document.createElement('span');
+                badge.className = 'px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200/60 flex items-center gap-1.5';
+                const icon = r.includes('Quran') ? 'fa-book-quran' : 'fa-dumbbell';
+                badge.innerHTML = `<i class="fa-solid ${icon} text-emerald-600"></i> ${r}`;
+                routinesContainer.appendChild(badge);
+            });
+
+            // Render Pomodoro Table
+            const tbody = document.getElementById('dayPomodoroTableBody');
+            tbody.innerHTML = '';
+
+            let totalPomodoros = 0;
+
+            data.pomodoros.forEach(item => {
+                totalPomodoros += item.count;
+                const totalMins = item.count * 25;
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid ${item.icon} ${item.color} text-sm"></i> ${item.subject}
+                    </td>
+                    <td class="p-3 font-semibold text-slate-700">${item.count} Promodo</td>
+                    <td class="p-3 text-slate-500 font-mono">${totalMins} mins</td>
+                    <td class="p-3 text-right">
+                        <button onclick="startSpecificPomodoro('${item.subject}')" class="px-2.5 py-1 bg-pupil-600 hover:bg-pupil-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex items-center gap-1 ml-auto">
+                            <i class="fa-solid fa-play text-[9px]"></i> Start
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('statTodayPomodoros').innerText = totalPomodoros;
+        }
+
+        function startSpecificPomodoro(subject) {
+            switchTab('study');
+            document.getElementById('timerStatus').innerText = `Focusing on: ${subject}`;
+            document.getElementById('dashTimerStatus').innerText = `Focusing on: ${subject}`;
+            if (!isTimerRunning) {
+                toggleTimer();
+            }
+            showToast(`Started 25m Pomodoro for ${subject}!`, 'success');
+        }
+
+        function renderFullWeeklyMatrix() {
+            const grid = document.getElementById('fullWeeklyMatrixGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            Object.keys(weeklyTimetableData).forEach(day => {
+                const info = weeklyTimetableData[day];
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-2xl border transition-all ${
+                    day === selectedScheduleDay ? 'bg-pupil-50/40 border-pupil-300 shadow-sm' : 'bg-slate-50/50 border-slate-200'
+                }`;
+
+                let pomodorosList = info.pomodoros.map(p => `
+                    <div class="flex items-center justify-between text-xs py-1 border-b border-slate-100 last:border-0">
+                        <span class="font-semibold text-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid ${p.icon} ${p.color}"></i> ${p.subject}
+                        </span>
+                        <span class="bg-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px]">${p.count} Promodo</span>
+                    </div>
+                `).join('');
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
+                        <h4 class="font-black text-slate-900 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-day text-pupil-600"></i> ${day}
+                        </h4>
+                        <span class="text-[10px] font-bold text-pupil-700 bg-pupil-100 px-2 py-0.5 rounded-full">
+                            ${info.pomodoros.reduce((acc, curr) => acc + curr.count, 0)} Pomodoros
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mb-3">
+                        ${info.routines.map(r => `<span class="text-[10px] font-bold bg-white text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md"><i class="fa-solid fa-check text-[9px]"></i> ${r}</span>`).join('')}
+                    </div>
+                    <div class="space-y-1">
+                        ${pomodorosList}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderDailyStudyPlan() {
+            const container = document.getElementById('dailyTaskList');
+            container.innerHTML = '';
+
+            const tasks = appState.dailyTasks || [];
+            const completedCount = tasks.filter(t => t.done).length;
+            const totalCount = tasks.length;
+            const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+            document.getElementById('studyPlanProgressText').innerText = `${completedCount}/${totalCount} completed`;
+            document.getElementById('studyPlanProgressBar').style.width = `${percentage}%`;
+
+            if (tasks.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 py-2 italic">No study tasks planned for today. Add one above!</p>`;
+                return;
+            }
+
+            tasks.forEach((task, idx) => {
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between p-3 rounded-xl border transition-all ${
+                    task.done ? 'bg-slate-50/60 border-slate-200' : 'bg-white border-slate-200/80 shadow-sm'
+                }`;
+                item.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden pr-2">
+                        <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleDailyTask(${idx})" class="w-4 h-4 rounded text-pupil-600 focus:ring-pupil-500 cursor-pointer">
+                        <span class="text-xs font-semibold ${task.done ? 'line-through text-slate-400' : 'text-slate-800'} truncate">
+                            ${task.title}
+                        </span>
+                    </div>
+                    <button onclick="deleteDailyTask(${idx})" class="text-slate-300 hover:text-rose-600 p-1 flex-shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addDailyTask(e) {
+            e.preventDefault();
+            const input = document.getElementById('dailyTaskInput');
+            const val = input.value.trim();
+            if (!val) return;
+
+            if (!appState.dailyTasks) appState.dailyTasks = [];
+            appState.dailyTasks.push({ id: 'dt_' + Date.now(), title: val, done: false });
+            saveState();
+            renderDailyStudyPlan();
+            input.value = '';
+            showToast("Added to today's plan!", "success");
+        }
+
+        function toggleDailyTask(index) {
+            if (appState.dailyTasks && appState.dailyTasks[index]) {
+                appState.dailyTasks[index].done = !appState.dailyTasks[index].done;
+                if (appState.dailyTasks[index].done) {
+                    logDailyActivity({ tasks: 1 });
+                } else {
+                    logDailyActivity({ tasks: -1 });
+                }
+                saveState();
+                renderDailyStudyPlan();
+                if (appState.dailyTasks[index].done) {
+                    showToast("Task completed! Keep up the momentum 🎉", "success");
+                }
+            }
+        }
+
+        function deleteDailyTask(index) {
+            if (appState.dailyTasks) {
+                appState.dailyTasks.splice(index, 1);
+                saveState();
+                renderDailyStudyPlan();
+            }
+        }
+
+        function updateStatsHeader() {
+            const pending = appState.assignments.filter(a => a.status === 'Pending');
+            const completedCourses = appState.courses.filter(c => c.progress >= 90);
+
+            document.getElementById('pendingBadge').innerText = pending.length;
+            document.getElementById('statCoursesCount').innerText = appState.courses.length;
+
+            const hours = (appState.studyStats.totalMinutes / 60).toFixed(1);
+            document.getElementById('statHoursLearned').innerText = Math.round(hours * 18);
+            document.getElementById('bannerHoursLearned').innerText = `${hours} hrs learned`;
+            document.getElementById('todayStudyMinutes').innerText = `${appState.studyStats.totalMinutes} mins`;
+            document.getElementById('completedSessionsCount').innerText = appState.studyStats.completedSessions || 0;
+        }
+
+        function renderDashboardContinueLearning() {
+            const grid = document.getElementById('continueLearningGrid');
+            grid.innerHTML = '';
+
+            appState.courses.slice(0, 4).forEach(course => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl border border-slate-200/80 pupil-card-shadow overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all';
+                card.innerHTML = `
+                    <div>
+                        <div class="relative h-28 bg-slate-900 overflow-hidden">
+                            <img src="${course.image}" alt="${course.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                            <span class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-white/90 backdrop-blur-sm text-[10px] font-bold text-slate-800 uppercase tracking-wider">
+                                ${course.category || 'Data'}
+                            </span>
+                            <div class="absolute bottom-2 left-3 right-3 text-white text-[11px] font-semibold flex items-center justify-between">
+                                <span>${course.progress}% complete</span>
+                            </div>
+                            <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-slate-700/50">
+                                <div class="h-full bg-pupil-500 transition-all duration-500" style="width: ${course.progress}%"></div>
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <h4 class="font-bold text-xs text-slate-900 line-clamp-1">${course.name}</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+                                <i class="fa-regular fa-user"></i> ${course.instructor}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="p-3 pt-0">
+                        <button onclick="switchTab('courses')" class="w-full py-1.5 bg-pupil-50 hover:bg-pupil-100 text-pupil-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+                            <i class="fa-regular fa-circle-play"></i> Continue Course
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderTodaysFocus() {
+            const container = document.getElementById('todaysFocusList');
+            const badge = document.getElementById('focusCountBadge');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const priorityRank = { High: 0, Medium: 1, Low: 2 };
+            const pending = appState.assignments
+                .filter(a => a.status === 'Pending')
+                .sort((a, b) => {
+                    const pDiff = (priorityRank[a.priority] ?? 3) - (priorityRank[b.priority] ?? 3);
+                    if (pDiff !== 0) return pDiff;
+                    return new Date(a.deadline) - new Date(b.deadline);
+                })
+                .slice(0, 3);
+
+            if (badge) badge.innerText = `${pending.length} task${pending.length === 1 ? '' : 's'}`;
+
+            if (pending.length === 0) {
+                container.innerHTML = `
+                    <div class="flex items-center gap-3 p-4 rounded-xl bg-pupil-50/60 border border-pupil-100">
+                        <div class="w-9 h-9 rounded-xl bg-pupil-100 text-pupil-700 flex items-center justify-center text-sm flex-shrink-0">
+                            <i class="fa-solid fa-champagne-glasses"></i>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-600">Wax degdeg ah ma jiraan — great job! Enjoy the clear day 🎉</p>
+                    </div>`;
+                return;
+            }
+
+            const styleMap = {
+                High:   { border: 'border-rose-400', iconBg: 'bg-rose-50 text-rose-600', icon: 'fa-bolt', label: 'HIGH' },
+                Medium: { border: 'border-amber-400', iconBg: 'bg-amber-50 text-amber-600', icon: 'fa-clock', label: 'MED' },
+                Low:    { border: 'border-slate-300', iconBg: 'bg-slate-100 text-slate-500', icon: 'fa-leaf', label: 'LOW' }
+            };
+
+            pending.forEach(assign => {
+                const course = appState.courses.find(c => c.id === assign.courseId);
+                const s = styleMap[assign.priority] || styleMap.Low;
+                const item = document.createElement('div');
+                item.className = `flex items-center gap-3.5 p-3.5 rounded-xl border-l-4 ${s.border} bg-slate-50/60 hover:bg-slate-50 transition-all`;
+                item.innerHTML = `
+                    <div class="w-9 h-9 rounded-xl ${s.iconBg} flex items-center justify-center text-sm flex-shrink-0">
+                        <i class="fa-solid ${s.icon}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-slate-900 truncate">${assign.title}</p>
+                        <p class="text-[11px] text-slate-500 truncate">${course ? course.name : 'General'} ·
+                            <span class="countdown-badge font-semibold text-pupil-700" data-deadline="${assign.deadline}">Due Soon!</span>
+                        </p>
+                    </div>
+                    <button onclick="openSubmitModal('${assign.id}')" class="flex-shrink-0 px-3.5 py-2 rounded-xl bg-pupil-600 hover:bg-pupil-700 text-white text-[11px] font-bold transition-all shadow-sm">
+                        Start
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+            updateCountdownDisplays();
+        }
+
+        function renderUpcomingDeadlinesWidget() {
+            const container = document.getElementById('upcomingDeadlinesList');
+            container.innerHTML = '';
+
+            const pending = appState.assignments
+                .filter(a => a.status === 'Pending')
+                .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+
+            if (pending.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 py-2 italic">No upcoming deadlines!</p>`;
+                return;
+            }
+
+            pending.slice(0, 2).forEach(assign => {
+                const course = appState.courses.find(c => c.id === assign.courseId);
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100';
+                item.innerHTML = `
+                    <div class="overflow-hidden pr-2">
+                        <p class="text-xs font-bold text-slate-800 truncate">${assign.title}</p>
+                        <p class="text-[10px] text-slate-400 truncate">${course ? course.name : 'General'}</p>
+                    </div>
+                    <span class="countdown-badge text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 flex-shrink-0" data-deadline="${assign.deadline}">
+                        Due Soon!
+                    </span>
+                `;
+                container.appendChild(item);
+            });
+            updateCountdownDisplays();
+        }
+
+        function renderCourses() {
+            const grid = document.getElementById('coursesGrid');
+            grid.innerHTML = '';
+
+            appState.courses.forEach(course => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl border border-slate-200/80 pupil-card-shadow overflow-hidden flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <div class="h-32 bg-slate-100 relative">
+                            <img src="${course.image}" class="w-full h-full object-cover">
+                            <span class="absolute top-3 left-3 px-2 py-0.5 rounded bg-slate-900/80 text-white text-[10px] font-bold uppercase">
+                                ${course.category}
+                            </span>
+                        </div>
+                        <div class="p-5">
+                            <h4 class="text-base font-bold text-slate-900">${course.name}</h4>
+                            <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${course.instructor}</p>
+                            
+                            <div class="mt-4 space-y-1.5">
+                                <div class="flex justify-between text-xs font-semibold">
+                                    <span class="text-slate-500">Goal Progress</span>
+                                    <span class="text-pupil-600">${course.progress}%</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-pupil-500 transition-all duration-500" style="width: ${course.progress}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-slate-400 font-medium">Status: Active Goal</span>
+                        <button onclick="deleteCourse('${course.id}')" class="text-slate-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderAssignments(filter = 'all') {
+            const tbody = document.getElementById('assignmentsTableBody');
+            tbody.innerHTML = '';
+
+            let list = appState.assignments;
+            if (filter !== 'all') {
+                list = list.filter(a => a.status === filter);
+            }
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-xs text-slate-400">No assignments found in this category.</td></tr>`;
+                return;
+            }
+
+            list.forEach(assign => {
+                const course = appState.courses.find(c => c.id === assign.courseId);
+                const courseName = course ? course.name : 'General';
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-4 font-bold text-slate-800 text-xs">
+                        ${assign.title}
+                        ${assign.notes ? `<p class="text-[10px] text-slate-400 font-normal mt-0.5"><i class="fa-solid fa-link text-pupil-500"></i> ${assign.notes}</p>` : ''}
+                    </td>
+                    <td class="p-4 text-xs text-slate-500">${courseName}</td>
+                    <td class="p-4 text-xs font-medium text-slate-600">${formatDateDisplay(assign.deadline)}</td>
+                    <td class="p-4">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50">
+                            ${assign.priority}
+                        </span>
+                    </td>
+                    <td class="p-4">
+                        ${assign.status === 'Submitted' 
+                            ? '<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-pupil-50 text-pupil-700 border border-pupil-200/50"><i class="fa-solid fa-check mr-1"></i> Submitted</span>'
+                            : '<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200"><i class="fa-regular fa-clock mr-1"></i> Pending</span>'
+                        }
+                    </td>
+                    <td class="p-4 text-right space-x-2">
+                        ${assign.status === 'Pending' 
+                            ? `<button onclick="openSubmitModal('${assign.id}')" class="px-3 py-1 bg-pupil-600 hover:bg-pupil-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm">Submit</button>`
+                            : `<button onclick="toggleAssignmentStatus('${assign.id}')" class="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200">Set Pending</button>`
+                        }
+                        <button onclick="deleteAssignment('${assign.id}')" class="text-slate-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterAssignments(status) {
+            document.querySelectorAll('.assign-filter-btn').forEach(btn => {
+                btn.classList.remove('bg-pupil-600', 'text-white');
+                btn.classList.add('bg-slate-100', 'text-slate-600');
+            });
+            event.target.classList.add('bg-pupil-600', 'text-white');
+            event.target.classList.remove('bg-slate-100', 'text-slate-600');
+            renderAssignments(status);
+        }
+
+        function renderDeadlinesTab() {
+            const container = document.getElementById('deadlinesTimeline');
+            container.innerHTML = '';
+
+            const pending = appState.assignments
+                .filter(a => a.status === 'Pending')
+                .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+
+            if (pending.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 text-xs py-4">No pending deadlines available right now!</p>`;
+                return;
+            }
+
+            pending.forEach(assign => {
+                const course = appState.courses.find(c => c.id === assign.courseId);
+                const card = document.createElement('div');
+                card.className = 'p-5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4';
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-pupil-50 border border-pupil-200/60 text-pupil-600 flex items-center justify-center text-xl flex-shrink-0">
+                            <i class="fa-regular fa-clock"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-900">${assign.title}</h4>
+                            <p class="text-xs text-slate-400 mt-0.5">${course ? course.name : 'General'} • Target: ${formatDateDisplay(assign.deadline)}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                        <div class="text-right">
+                            <span class="text-[10px] text-slate-400 font-medium block">Time Remaining</span>
+                            <span class="countdown-badge text-xs font-mono font-bold text-pupil-700" data-deadline="${assign.deadline}">Calculating...</span>
+                        </div>
+                        <button onclick="openSubmitModal('${assign.id}')" class="px-4 py-2 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold shadow-md">
+                            Submit Now
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            updateCountdownDisplays();
+        }
+
+        function updateCountdownDisplays() {
+            const badges = document.querySelectorAll('.countdown-badge');
+            const now = new Date();
+
+            badges.forEach(badge => {
+                const deadlineStr = badge.getAttribute('data-deadline');
+                if (!deadlineStr) return;
+
+                const deadline = new Date(deadlineStr);
+                const diff = deadline - now;
+
+                if (diff <= 0) {
+                    badge.innerText = "Overdue!";
+                    badge.className = badge.className.replace('text-pupil-700', 'text-rose-600');
+                } else {
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+                    if (days > 0) {
+                        badge.innerText = `${days}d ${hours}h left`;
+                    } else {
+                        badge.innerText = `${hours}h ${minutes}m left`;
+                    }
+                }
+            });
+        }
+
+        function startDeadlineCountdownInterval() {
+            setInterval(updateCountdownDisplays, 30000);
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('timerToggleBtn');
+            const dashBtn = document.getElementById('dashTimerToggleBtn');
+
+            if (isTimerRunning) {
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-play"></i>`;
+                if (dashBtn) dashBtn.innerHTML = `<i class="fa-solid fa-play"></i> Start Sprint`;
+                document.getElementById('timerStatus').innerText = "Paused";
+                document.getElementById('dashTimerStatus').innerText = "Timer Paused";
+            } else {
+                isTimerRunning = true;
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-pause"></i>`;
+                if (dashBtn) dashBtn.innerHTML = `<i class="fa-solid fa-pause"></i> Pause`;
+                
+                const modeText = timerMode === 'work' ? "Focus session in progress..." : "Enjoy your break!";
+                document.getElementById('timerStatus').innerText = modeText;
+                document.getElementById('dashTimerStatus').innerText = modeText;
+
+                timerInterval = setInterval(() => {
+                    if (timerSeconds > 0) {
+                        timerSeconds--;
+                        updateTimerUI();
+                    } else {
+                        clearInterval(timerInterval);
+                        isTimerRunning = false;
+                        
+                        if (timerMode === 'work') {
+                            appState.studyStats.totalMinutes += 25;
+                            appState.studyStats.completedSessions = (appState.studyStats.completedSessions || 0) + 1;
+                            logDailyActivity({ minutes: 25, sessions: 1 });
+                            saveState();
+                            updateStatsHeader();
+                            showToast("Pomodoro session completed! Take a 5 min break.", "success");
+                            switchTimerMode('break');
+                        } else {
+                            showToast("Break over! Ready to focus again?", "info");
+                            switchTimerMode('work');
+                        }
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            
+            const btn = document.getElementById('timerToggleBtn');
+            const dashBtn = document.getElementById('dashTimerToggleBtn');
+            if (btn) btn.innerHTML = `<i class="fa-solid fa-play"></i>`;
+            if (dashBtn) dashBtn.innerHTML = `<i class="fa-solid fa-play"></i> Start Sprint`;
+
+            timerSeconds = timerMode === 'work' ? 25 * 60 : 5 * 60;
+            totalTimerSeconds = timerSeconds;
+            document.getElementById('timerStatus').innerText = "Get ready to focus";
+            document.getElementById('dashTimerStatus').innerText = "Ready for a focus sprint?";
+            updateTimerUI();
+        }
+
+        function switchTimerMode(forceMode = null) {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+
+            const btn = document.getElementById('timerToggleBtn');
+            const dashBtn = document.getElementById('dashTimerToggleBtn');
+            if (btn) btn.innerHTML = `<i class="fa-solid fa-play"></i>`;
+            if (dashBtn) dashBtn.innerHTML = `<i class="fa-solid fa-play"></i> Start Sprint`;
+
+            if (forceMode) {
+                timerMode = forceMode;
+            } else {
+                timerMode = timerMode === 'work' ? 'break' : 'work';
+            }
+
+            if (timerMode === 'work') {
+                timerSeconds = 25 * 60;
+                totalTimerSeconds = 25 * 60;
+                document.getElementById('timerModeText').innerText = "Focus Area (Study - 25 Min)";
+                document.getElementById('dashTimerModeBadge').innerText = "STUDY";
+            } else {
+                timerSeconds = 5 * 60;
+                totalTimerSeconds = 5 * 60;
+                document.getElementById('timerModeText').innerText = "Break Area (Rest - 5 Min)";
+                document.getElementById('dashTimerModeBadge').innerText = "BREAK";
+            }
+            document.getElementById('timerStatus').innerText = "Get ready";
+            document.getElementById('dashTimerStatus').innerText = "Ready";
+            updateTimerUI();
+        }
+
+        function updateTimerUI() {
+            const mins = Math.floor(timerSeconds / 60);
+            const secs = timerSeconds % 60;
+            const displayStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            
+            document.getElementById('timerDisplay').innerText = displayStr;
+            document.getElementById('dashTimerDisplay').innerText = displayStr;
+
+            const circle = document.getElementById('timerProgressCircle');
+            if (circle) {
+                const circumference = 2 * Math.PI * 110;
+                const progressRatio = timerSeconds / totalTimerSeconds;
+                circle.style.strokeDashoffset = circumference * (1 - progressRatio);
+            }
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function updateCourseSelectOptions() {
+            const select = document.getElementById('assignCourse');
+            select.innerHTML = '';
+            appState.courses.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.innerText = c.name;
+                select.appendChild(opt);
+            });
+        }
+
+        function saveAssignment(e) {
+            e.preventDefault();
+            const title = document.getElementById('assignTitle').value;
+            const courseId = document.getElementById('assignCourse').value;
+            const deadline = document.getElementById('assignDeadline').value;
+            const priority = document.getElementById('assignPriority').value;
+
+            appState.assignments.push({
+                id: 'a_' + Date.now(),
+                title,
+                courseId,
+                deadline,
+                priority,
+                status: 'Pending',
+                notes: ''
+            });
+
+            saveState();
+            renderAll();
+            closeModal('addAssignmentModal');
+            document.getElementById('addAssignmentForm').reset();
+            showToast("New assignment added!", "success");
+        }
+
+        function saveCourse(e) {
+            e.preventDefault();
+            const name = document.getElementById('courseName').value;
+            const instructor = document.getElementById('courseInstructor').value;
+            const category = document.getElementById('courseCategory').value;
+            const progress = parseInt(document.getElementById('courseProgress').value) || 25;
+
+            const imgs = [
+                'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&auto=format&fit=crop&q=80',
+                'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=400&auto=format&fit=crop&q=80',
+                'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&auto=format&fit=crop&q=80'
+            ];
+
+            appState.courses.push({
+                id: 'c_' + Date.now(),
+                name,
+                instructor,
+                category,
+                progress,
+                image: imgs[Math.floor(Math.random() * imgs.length)]
+            });
+
+            saveState();
+            renderAll();
+            closeModal('addCourseModal');
+            document.getElementById('addCourseForm').reset();
+            showToast("Course created successfully!", "success");
+        }
+
+        function openSubmitModal(assignId) {
+            const assign = appState.assignments.find(a => a.id === assignId);
+            if (!assign) return;
+
+            document.getElementById('submitAssignId').value = assign.id;
+            document.getElementById('submitAssignTitleDisplay').innerText = assign.title;
+            openModal('submitAssignmentModal');
+        }
+
+        function processSubmission(e) {
+            e.preventDefault();
+            const assignId = document.getElementById('submitAssignId').value;
+            const notes = document.getElementById('submissionNotes').value;
+
+            const assign = appState.assignments.find(a => a.id === assignId);
+            if (assign) {
+                assign.status = 'Submitted';
+                assign.notes = notes;
+
+                // Dynamically update course progress when assignment is submitted
+                const course = appState.courses.find(c => c.id === assign.courseId);
+                if (course) {
+                    course.progress = Math.min(100, course.progress + 15);
+                }
+
+                saveState();
+                renderAll();
+                closeModal('submitAssignmentModal');
+                document.getElementById('submitAssignmentForm').reset();
+                showToast("Assignment submitted! Course progress updated 🎉", "success");
+            }
+        }
+
+        function toggleAssignmentStatus(assignId) {
+            const assign = appState.assignments.find(a => a.id === assignId);
+            if (assign) {
+                assign.status = assign.status === 'Submitted' ? 'Pending' : 'Submitted';
+                saveState();
+                renderAll();
+                showToast("Assignment status updated.", "info");
+            }
+        }
+
+        function deleteAssignment(id) {
+            appState.assignments = appState.assignments.filter(a => a.id !== id);
+            saveState();
+            renderAll();
+            showToast("Assignment removed.", "info");
+        }
+
+        function deleteCourse(id) {
+            if (confirm("Are you sure you want to delete this course?")) {
+                appState.courses = appState.courses.filter(c => c.id !== id);
+                appState.assignments = appState.assignments.filter(a => a.courseId !== id);
+                saveState();
+                renderAll();
+                showToast("Course deleted.", "info");
+            }
+        }
+
+        function formatDateDisplay(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const bg = type === 'success' ? 'bg-pupil-600' : 'bg-slate-800';
+            
+            toast.className = `${bg} text-white px-4 py-3 rounded-xl shadow-xl text-xs font-bold flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${msg}`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        // ============ LIVE CLOCK & ALARM SYSTEM ============
+        let alarmAudioCtx = null;
+        let alarmBeepInterval = null;
+        let isAlarmRinging = false;
+        let lastAlarmCheckMinute = null;
+        let newAlarmSelectedDays = [];
+        let previewInterval = null;
+        let previewTimeout = null;
+        let digitalToggleState = false;
+
+        const DAY_CODES = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+        const DAY_LABELS = { Mo: 'M', Tu: 'Tu', We: 'We', Th: 'Th', Fr: 'Fri', Sa: 'Sa', Su: 'Su' };
+        const JS_DAY_TO_CODE = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']; // Date.getDay() index 0=Sun
+
+        // ---- Sound engine: multiple synthesized alarm tones (no external audio files) ----
+        function tone(ctx, freq, duration, type, gainPeak) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(gainPeak || 0.3, ctx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + duration);
+        }
+
+        const SOUND_LABELS = {
+            classic: 'Classic Beep',
+            digital: 'Digital Alarm',
+            chime: 'Gentle Chime',
+            pulse: 'Urgent Pulse',
+            marimba: 'Marimba',
+            radar: 'Radar Ping'
+        };
+
+        const SOUND_DEFS = {
+            classic: {
+                interval: 600,
+                play(ctx) { tone(ctx, 880, 0.35, 'sine', 0.35); }
+            },
+            digital: {
+                interval: 450,
+                play(ctx) {
+                    digitalToggleState = !digitalToggleState;
+                    tone(ctx, digitalToggleState ? 1200 : 900, 0.22, 'square', 0.22);
+                }
+            },
+            chime: {
+                interval: 950,
+                play(ctx) { tone(ctx, 1046, 0.7, 'sine', 0.22); }
+            },
+            pulse: {
+                interval: 750,
+                play(ctx) {
+                    tone(ctx, 1000, 0.1, 'square', 0.28);
+                    setTimeout(() => tone(ctx, 1000, 0.1, 'square', 0.28), 140);
+                    setTimeout(() => tone(ctx, 1000, 0.1, 'square', 0.28), 280);
+                }
+            },
+            marimba: {
+                interval: 850,
+                play(ctx) {
+                    tone(ctx, 698, 0.25, 'triangle', 0.3);
+                    setTimeout(() => tone(ctx, 523, 0.35, 'triangle', 0.3), 180);
+                }
+            },
+            radar: {
+                interval: 1100,
+                play(ctx) { tone(ctx, 1600, 0.18, 'sine', 0.2); }
+            }
+        };
+
+        function getAudioCtx() {
+            if (!alarmAudioCtx) {
+                alarmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (alarmAudioCtx.state === 'suspended') {
+                alarmAudioCtx.resume();
+            }
+            return alarmAudioCtx;
+        }
+
+        function startLiveClock() {
+            updateLiveClock();
+            setInterval(updateLiveClock, 1000);
+            renderAlarmCards();
+        }
+
+        function updateLiveClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-GB', { hour12: false });
+            const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+            const clockEl = document.getElementById('liveClockDisplay');
+            const dateEl = document.getElementById('liveClockDate');
+            if (clockEl) clockEl.innerText = timeStr;
+            if (dateEl) dateEl.innerText = dateStr;
+
+            // Refresh "in X hours, Y minutes" countdown text every tick
+            refreshAlarmCountdowns();
+
+            // Check alarms only once per new minute (HH:MM changed)
+            const currentHHMM = timeStr.slice(0, 5);
+            if (currentHHMM !== lastAlarmCheckMinute) {
+                lastAlarmCheckMinute = currentHHMM;
+                checkAlarms(currentHHMM);
+            }
+        }
+
+        function checkAlarms(currentHHMM) {
+            if (!appState.alarms || appState.alarms.length === 0) return;
+            const todayCode = JS_DAY_TO_CODE[new Date().getDay()];
+            appState.alarms.forEach(alarm => {
+                if (!alarm.enabled || alarm.time !== currentHHMM) return;
+                const isOneTime = !alarm.days || alarm.days.length === 0;
+                const matchesToday = isOneTime || alarm.days.includes(todayCode);
+                if (matchesToday) {
+                    triggerAlarmRing(alarm, isOneTime);
+                }
+            });
+        }
+
+        // ---- Add Alarm Modal ----
+        function openAddAlarmModal() {
+            newAlarmSelectedDays = [];
+            document.getElementById('addAlarmForm').reset();
+            document.getElementById('alarmSoundSelect').value = 'classic';
+            stopPreviewSound();
+            renderNewAlarmDaySelector();
+            openModal('addAlarmModal');
+        }
+
+        function renderNewAlarmDaySelector() {
+            const container = document.getElementById('alarmDaySelector');
+            container.innerHTML = '';
+            DAY_CODES.forEach(code => {
+                const active = newAlarmSelectedDays.includes(code);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `w-8 h-8 rounded-full text-[10px] font-bold transition-all ${active ? 'bg-pupil-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`;
+                btn.innerText = DAY_LABELS[code];
+                btn.onclick = () => {
+                    if (newAlarmSelectedDays.includes(code)) {
+                        newAlarmSelectedDays = newAlarmSelectedDays.filter(d => d !== code);
+                    } else {
+                        newAlarmSelectedDays.push(code);
+                    }
+                    renderNewAlarmDaySelector();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function addAlarm(e) {
+            e.preventDefault();
+            const timeVal = document.getElementById('alarmTimeInput').value;
+            const labelVal = document.getElementById('alarmLabelInput').value.trim();
+            const soundVal = document.getElementById('alarmSoundSelect').value || 'classic';
+            if (!timeVal) return;
+
+            if (!appState.alarms) appState.alarms = [];
+            appState.alarms.push({
+                id: 'al_' + Date.now(),
+                time: timeVal,
+                label: labelVal || 'Alarm',
+                days: [...newAlarmSelectedDays],
+                sound: soundVal,
+                enabled: true
+            });
+
+            saveState();
+            renderAlarmCards();
+            stopPreviewSound();
+            closeModal('addAlarmModal');
+            showToast(`Alarm-ka waxaa loo dejiyay ${timeVal}`, "success");
+        }
+
+        function toggleAlarmEnabled(alarmId) {
+            const alarm = appState.alarms.find(a => a.id === alarmId);
+            if (alarm) {
+                alarm.enabled = !alarm.enabled;
+                saveState();
+                renderAlarmCards();
+            }
+        }
+
+        function toggleAlarmDay(alarmId, day) {
+            const alarm = appState.alarms.find(a => a.id === alarmId);
+            if (!alarm) return;
+            if (!alarm.days) alarm.days = [];
+            if (alarm.days.includes(day)) {
+                alarm.days = alarm.days.filter(d => d !== day);
+            } else {
+                alarm.days.push(day);
+            }
+            saveState();
+            renderAlarmCards();
+        }
+
+        function removeAlarm(alarmId) {
+            appState.alarms = appState.alarms.filter(a => a.id !== alarmId);
+            saveState();
+            renderAlarmCards();
+        }
+
+        function cycleAlarmSound(alarmId) {
+            const alarm = appState.alarms.find(a => a.id === alarmId);
+            if (!alarm) return;
+            const ids = Object.keys(SOUND_DEFS);
+            const currentIdx = ids.indexOf(alarm.sound || 'classic');
+            const nextId = ids[(currentIdx + 1) % ids.length];
+            alarm.sound = nextId;
+            saveState();
+            renderAlarmCards();
+            previewAlarmSound(nextId);
+            showToast(`Sound: ${SOUND_LABELS[nextId]}`, "info");
+        }
+
+        // ---- Formatting helpers ----
+        function formatAlarmTime12h(hhmm) {
+            const [h, m] = hhmm.split(':').map(Number);
+            const period = h >= 12 ? 'PM' : 'AM';
+            let h12 = h % 12;
+            if (h12 === 0) h12 = 12;
+            return { display: `${h12}:${String(m).padStart(2, '0')}`, period };
+        }
+
+        function getNextTriggerDate(alarm) {
+            const now = new Date();
+            const [h, m] = alarm.time.split(':').map(Number);
+            const isOneTime = !alarm.days || alarm.days.length === 0;
+
+            if (isOneTime) {
+                const next = new Date(now);
+                next.setHours(h, m, 0, 0);
+                if (next <= now) next.setDate(next.getDate() + 1);
+                return next;
+            }
+
+            for (let i = 0; i < 8; i++) {
+                const candidate = new Date(now);
+                candidate.setDate(now.getDate() + i);
+                candidate.setHours(h, m, 0, 0);
+                const code = JS_DAY_TO_CODE[candidate.getDay()];
+                if (alarm.days.includes(code) && candidate > now) {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+
+        function formatCountdown(targetDate) {
+            if (!targetDate) return '';
+            const diffMs = targetDate - new Date();
+            if (diffMs <= 0) return 'hadda';
+            const totalMinutes = Math.round(diffMs / 60000);
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            if (hours <= 0) return `in ${minutes} minute${minutes === 1 ? '' : 's'}`;
+            return `in ${hours} hour${hours === 1 ? '' : 's'}, ${minutes} minute${minutes === 1 ? '' : 's'}`;
+        }
+
+        function refreshAlarmCountdowns() {
+            document.querySelectorAll('.alarm-countdown-text').forEach(el => {
+                const alarmId = el.getAttribute('data-alarm-id');
+                const alarm = (appState.alarms || []).find(a => a.id === alarmId);
+                if (!alarm || !alarm.enabled) return;
+                el.innerText = formatCountdown(getNextTriggerDate(alarm));
+            });
+            renderNextAlarmPreview();
+        }
+
+        function renderNextAlarmPreview() {
+            const box = document.getElementById('nextAlarmPreview');
+            if (!box) return;
+            const enabledAlarms = (appState.alarms || []).filter(a => a.enabled);
+            if (enabledAlarms.length === 0) {
+                box.innerHTML = `
+                    <div class="w-9 h-9 rounded-xl bg-pupil-50 text-pupil-600 flex items-center justify-center text-sm flex-shrink-0">
+                        <i class="fa-solid fa-bell"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-slate-800">Alarm lama dejin</p>
+                        <p class="text-[11px] text-slate-400">Taabo "Manage" si aad u darto</p>
+                    </div>`;
+                return;
+            }
+            let soonest = null;
+            let soonestDate = null;
+            enabledAlarms.forEach(a => {
+                const d = getNextTriggerDate(a);
+                if (d && (!soonestDate || d < soonestDate)) {
+                    soonestDate = d;
+                    soonest = a;
+                }
+            });
+            if (!soonest) return;
+            const t12 = formatAlarmTime12h(soonest.time);
+            box.innerHTML = `
+                <div class="w-9 h-9 rounded-xl bg-pupil-50 text-pupil-600 flex items-center justify-center text-sm flex-shrink-0">
+                    <i class="fa-solid fa-bell"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-xs font-bold text-slate-800">${t12.display} ${t12.period} · ${soonest.label}</p>
+                    <p class="text-[11px] text-slate-400">${formatCountdown(soonestDate)}</p>
+                </div>`;
+        }
+
+        // ---- Card rendering (dark cards, matches reference design) ----
+        function renderAlarmCards() {
+            const grid = document.getElementById('alarmCardsGrid');
+            if (grid) {
+                grid.innerHTML = '';
+
+                if (!appState.alarms || appState.alarms.length === 0) {
+                    grid.innerHTML = `
+                        <div class="col-span-full text-center py-16 text-slate-400">
+                            <i class="fa-regular fa-bell text-3xl mb-3"></i>
+                            <p class="text-sm font-semibold">Weli alarm lama dejin</p>
+                            <p class="text-xs mt-1">Taabo "Add Alarm" si aad u dejiso mid cusub.</p>
+                        </div>`;
+                } else {
+                    appState.alarms
+                        .slice()
+                        .sort((a, b) => a.time.localeCompare(b.time))
+                        .forEach(alarm => {
+                            const t12 = formatAlarmTime12h(alarm.time);
+                            const card = document.createElement('div');
+                            card.className = `rounded-3xl p-5 relative overflow-hidden transition-all ${alarm.enabled ? 'bg-slate-900' : 'bg-slate-800/60'}`;
+
+                            const dayChips = DAY_CODES.map(code => {
+                                const active = alarm.days && alarm.days.includes(code);
+                                return `<button onclick="toggleAlarmDay('${alarm.id}','${code}')" class="w-7 h-7 rounded-full text-[10px] font-bold flex items-center justify-center transition-all ${active ? 'bg-white/20 text-white' : 'text-white/25 hover:text-white/50'}">${DAY_LABELS[code]}</button>`;
+                            }).join('');
+
+                            card.innerHTML = `
+                                <div class="flex items-start justify-between mb-2">
+                                    <div class="flex items-baseline gap-1.5">
+                                        <span class="text-4xl font-black tracking-tight ${alarm.enabled ? 'text-white/90' : 'text-white/40'}">${t12.display}</span>
+                                        <span class="text-xs font-bold ${alarm.enabled ? 'text-white/50' : 'text-white/25'}">${t12.period}</span>
+                                    </div>
+                                    <button onclick="toggleAlarmEnabled('${alarm.id}')" class="w-11 h-6 rounded-full relative flex-shrink-0 transition-colors ${alarm.enabled ? 'bg-pupil-500' : 'bg-white/15'}">
+                                        <span class="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${alarm.enabled ? 'right-0.5' : 'left-0.5'}"></span>
+                                    </button>
+                                </div>
+                                <p class="alarm-countdown-text text-xs flex items-center gap-1.5 mb-3 ${alarm.enabled ? 'text-white/40' : 'text-white/20'}" data-alarm-id="${alarm.id}">
+                                    <i class="fa-solid fa-bell text-[10px]"></i> ${alarm.enabled ? formatCountdown(getNextTriggerDate(alarm)) : 'Off'}
+                                </p>
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <p class="text-base font-bold truncate ${alarm.enabled ? 'text-white/70' : 'text-white/35'}">${alarm.label}</p>
+                                    <div class="flex items-center gap-2.5 flex-shrink-0">
+                                        <button onclick="cycleAlarmSound('${alarm.id}')" title="${SOUND_LABELS[alarm.sound || 'classic']} — taabo si aad u bedesho" class="text-white/20 hover:text-pupil-400 px-1">
+                                            <i class="fa-solid fa-music text-xs"></i>
+                                        </button>
+                                        <button onclick="removeAlarm('${alarm.id}')" class="text-white/20 hover:text-rose-400 px-1">
+                                            <i class="fa-solid fa-trash-can text-xs"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <p class="text-[10px] text-white/25 -mt-2 mb-3">${SOUND_LABELS[alarm.sound || 'classic']}</p>
+                                <div class="flex items-center gap-1">${dayChips}</div>
+                            `;
+                            grid.appendChild(card);
+                        });
+                }
+            }
+            renderNextAlarmPreview();
+        }
+
+        function triggerAlarmRing(alarm, isOneTime) {
+            if (isAlarmRinging) return;
+            isAlarmRinging = true;
+
+            if (isOneTime) {
+                alarm.enabled = false;
+                saveState();
+                renderAlarmCards();
+            }
+
+            const t12 = formatAlarmTime12h(alarm.time);
+            document.getElementById('alarmRingTime').innerText = `${t12.display} ${t12.period}`;
+            document.getElementById('alarmRingLabel').innerText = alarm.label || 'Waqtigii aad dooratay ayaa gaartay!';
+            openModal('alarmRingOverlay');
+            playAlarmSound(alarm.sound || 'classic');
+        }
+
+        function stopAlarmRing() {
+            isAlarmRinging = false;
+            closeModal('alarmRingOverlay');
+            stopAlarmSound();
+        }
+
+        function playAlarmSound(soundId) {
+            stopPreviewSound(); // don't overlap with a lingering preview
+            const ctx = getAudioCtx();
+            const def = SOUND_DEFS[soundId] || SOUND_DEFS.classic;
+
+            function cycle() {
+                if (!isAlarmRinging) return;
+                def.play(ctx);
+            }
+
+            cycle();
+            alarmBeepInterval = setInterval(cycle, def.interval);
+        }
+
+        function stopAlarmSound() {
+            if (alarmBeepInterval) {
+                clearInterval(alarmBeepInterval);
+                alarmBeepInterval = null;
+            }
+        }
+
+        // ---- Sound preview (short, self-stopping, used in modal & card sound-cycle button) ----
+        function previewAlarmSound(soundId) {
+            stopPreviewSound();
+            const ctx = getAudioCtx();
+            const def = SOUND_DEFS[soundId] || SOUND_DEFS.classic;
+
+            def.play(ctx);
+            previewInterval = setInterval(() => def.play(ctx), def.interval);
+            previewTimeout = setTimeout(stopPreviewSound, def.interval * 2 + 300);
+        }
+
+        function stopPreviewSound() {
+            if (previewInterval) {
+                clearInterval(previewInterval);
+                previewInterval = null;
+            }
+            if (previewTimeout) {
+                clearTimeout(previewTimeout);
+                previewTimeout = null;
+            }
+        }
+        // ============ END LIVE CLOCK & ALARM SYSTEM ============
+
+        // ---- OFFLINE SUPPORT: register the service worker ----
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(() => {
+                    // Registration can fail (e.g. opened as a local file:// path
+                    // instead of served over http/https) — app still works online.
+                });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "Zenith — Student Learning & Time Dashboard",
+  "short_name": "Zenith",
+  "description": "Zenith waa dashboard waxbarasho oo lagu maamulo koorsooyinka, shaqooyinka, jadwalka, focus timer, alarm, iyo falanqaynta horumarka.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#F1F5F9",
+  "theme_color": "#C2410C",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
