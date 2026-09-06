@@ -471,6 +471,25 @@
                                 </span>
                             </div>
 
+                            <!-- Date Navigator -->
+                            <div class="flex items-center justify-between mb-3 bg-slate-50 rounded-xl p-1.5">
+                                <button onclick="shiftGoalsDate(-1)" class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center text-slate-500 transition-all">
+                                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                                </button>
+                                <div class="flex items-center gap-2">
+                                    <p id="goalsDateLabel" class="text-xs font-bold text-slate-800">Today</p>
+                                    <button id="goalsJumpTodayBtn" onclick="jumpToTodayGoals()" class="hidden text-[10px] font-bold text-pupil-600 hover:underline">Today</button>
+                                </div>
+                                <button onclick="shiftGoalsDate(1)" class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center text-slate-500 transition-all">
+                                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                                </button>
+                            </div>
+
+                            <!-- 7-day history/planning strip -->
+                            <div id="goalsHistoryStrip" class="flex items-center justify-between gap-1.5 mb-4">
+                                <!-- Dynamically rendered day chips -->
+                            </div>
+
                             <!-- Visual Completion Progress Bar -->
                             <div class="w-full bg-slate-100 rounded-full h-2 mb-5 overflow-hidden">
                                 <div id="studyPlanProgressBar" class="bg-pupil-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
@@ -699,6 +718,13 @@
                             Focus Area (Study - 25 Min)
                         </span>
 
+                        <!-- Session length presets -->
+                        <div id="durationPresetRow" class="flex items-center gap-2 mb-2">
+                            <button data-mins="25" onclick="setWorkDuration(25)" class="duration-preset-btn px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-pupil-600 text-white">25m</button>
+                            <button data-mins="45" onclick="setWorkDuration(45)" class="duration-preset-btn px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-slate-100 text-slate-600">45m</button>
+                            <button data-mins="50" onclick="setWorkDuration(50)" class="duration-preset-btn px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-slate-100 text-slate-600">50m</button>
+                        </div>
+
                         <div class="my-6 relative flex items-center justify-center">
                             <svg class="w-64 h-64 transform -rotate-90">
                                 <circle cx="128" cy="128" r="110" stroke="currentColor" stroke-width="12" class="text-slate-100" fill="transparent" />
@@ -809,7 +835,9 @@
                         <h4 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <i class="fa-solid fa-clock text-pupil-600"></i> Wakhtiga Focus-ka (7 maalmood)
                         </h4>
-                        <canvas id="analyticsMinutesChart" height="180"></canvas>
+                        <div class="relative h-56">
+                            <canvas id="analyticsMinutesChart"></canvas>
+                        </div>
                     </div>
 
                     <!-- Tasks Completed Chart -->
@@ -817,7 +845,9 @@
                         <h4 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <i class="fa-solid fa-list-check text-pupil-600"></i> Shaqooyinka la Dhammeeyay (7 maalmood)
                         </h4>
-                        <canvas id="analyticsTasksChart" height="180"></canvas>
+                        <div class="relative h-56">
+                            <canvas id="analyticsTasksChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
@@ -928,12 +958,12 @@
                 <i class="fa-solid fa-bell alarm-ring-icon"></i>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase text-pupil-600 tracking-wider">ALARM-KA WUU DHACAY</p>
+                <p id="alarmRingEyebrow" class="text-[10px] font-bold uppercase text-pupil-600 tracking-wider">ALARM-KA WUU DHACAY</p>
                 <h3 id="alarmRingTime" class="text-3xl font-black text-slate-900 font-mono mt-1">00:00</h3>
                 <p id="alarmRingLabel" class="text-sm text-slate-500 font-semibold mt-2">Waqtigii aad dooratay ayaa gaartay!</p>
             </div>
             <button onclick="stopAlarmRing()" class="w-full py-3.5 rounded-xl bg-pupil-600 hover:bg-pupil-700 text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2">
-                <i class="fa-solid fa-stop"></i> Joojiso Alarm-ka
+                <i id="alarmRingStopIcon" class="fa-solid fa-stop"></i> <span id="alarmRingStopBtnText">Joojiso Alarm-ka</span>
             </button>
         </div>
     </div>
@@ -1112,10 +1142,11 @@
         const emptyData = {
             courses: [],
             assignments: [],
-            dailyTasks: [],
+            dailyTasksByDate: {},
             studyStats: { totalMinutes: 0, completedSessions: 0 },
             alarms: [],
-            history: {}
+            history: {},
+            weeklySchedule: null // null = seed from weeklyTimetableData on first load
         };
 
         function getFutureDate(daysToAdd) {
@@ -1125,7 +1156,7 @@
             return date.toISOString().slice(0, 16);
         }
 
-        let appState = { courses: [], assignments: [], dailyTasks: [], studyStats: {}, alarms: [], history: {} };
+        let appState = { courses: [], assignments: [], dailyTasksByDate: {}, studyStats: {}, alarms: [], history: {}, weeklySchedule: null };
         let selectedScheduleDay = 'Sabti';
 
         // Pomodoro State
@@ -1134,6 +1165,9 @@
         let totalTimerSeconds = 25 * 60;
         let isTimerRunning = false;
         let timerMode = 'work';
+        let timerEndTimestamp = null; // epoch ms — lets the countdown stay accurate even if the tab is backgrounded
+        let workDurationMinutes = 25;
+        let ringContext = null; // 'alarm' | 'timer' — which flow opened the ring overlay, so Stop knows what to do next
 
         // ============ MULTI-USER AUTH (client-side, per-browser only — see note below) ============
         // IMPORTANT: This app has no server/database. "Accounts" are stored in THIS browser's
@@ -1250,8 +1284,13 @@
 
         function handleLogout() {
             if (!confirm("Ma hubtaa inaad ka baxeyso account-kaaga? Xogtaadu waa sii kaydsanaan doontaa.")) return;
-            if (isTimerRunning) { clearInterval(timerInterval); isTimerRunning = false; }
-            if (isAlarmRinging) { stopAlarmRing(); }
+            if (isTimerRunning) { clearInterval(timerInterval); isTimerRunning = false; timerEndTimestamp = null; }
+            if (isAlarmRinging) {
+                isAlarmRinging = false;
+                ringContext = null;
+                closeModal('alarmRingOverlay');
+                stopAlarmSound();
+            }
             localStorage.removeItem(SESSION_KEY);
             currentUsername = null;
             document.getElementById('appShell').classList.add('hidden');
@@ -1265,6 +1304,7 @@
         function bootApp() {
             detectCurrentDay();
             loadState();
+            selectedGoalsDate = todayKey();
             renderAll();
             renderAlarmCards();
             startDeadlineCountdownInterval();
@@ -1294,23 +1334,51 @@
             selectedScheduleDay = dayNames[dayIdx] || 'Sabti';
         }
 
+        function ensureWeeklyScheduleIds() {
+            if (!appState.weeklySchedule) return;
+            Object.keys(appState.weeklySchedule).forEach(day => {
+                const dayData = appState.weeklySchedule[day];
+                if (!dayData.routines) dayData.routines = [];
+                if (!dayData.pomodoros) dayData.pomodoros = [];
+                dayData.pomodoros.forEach(p => {
+                    if (!p.id) p.id = 'wt_' + Math.random().toString(36).slice(2, 9);
+                    if (!p.icon) p.icon = 'fa-book';
+                    if (!p.color) p.color = 'text-slate-600';
+                });
+            });
+        }
+
         function loadState() {
             if (!currentUsername) return;
             const saved = localStorage.getItem(storageKeyFor(currentUsername));
             if (saved) {
                 try {
                     appState = JSON.parse(saved);
-                    if (!appState.dailyTasks) appState.dailyTasks = [];
+
+                    // Migrate legacy flat dailyTasks[] (pre date-based goals) into today's bucket
+                    if (!appState.dailyTasksByDate) appState.dailyTasksByDate = {};
+                    if (Array.isArray(appState.dailyTasks) && appState.dailyTasks.length > 0) {
+                        const todayBucket = appState.dailyTasksByDate[todayKey()] || [];
+                        appState.dailyTasksByDate[todayKey()] = todayBucket.concat(appState.dailyTasks);
+                        delete appState.dailyTasks;
+                    }
+
                     if (!appState.alarms) appState.alarms = [];
                     if (!appState.history) appState.history = {};
                     if (!appState.studyStats) appState.studyStats = { totalMinutes: 0, completedSessions: 0 };
                     if (!appState.courses) appState.courses = [];
                     if (!appState.assignments) appState.assignments = [];
+                    if (!appState.weeklySchedule) appState.weeklySchedule = JSON.parse(JSON.stringify(weeklyTimetableData));
+                    ensureWeeklyScheduleIds();
                 } catch (e) {
                     appState = JSON.parse(JSON.stringify(emptyData));
+                    appState.weeklySchedule = JSON.parse(JSON.stringify(weeklyTimetableData));
+                    ensureWeeklyScheduleIds();
                 }
             } else {
                 appState = JSON.parse(JSON.stringify(emptyData));
+                appState.weeklySchedule = JSON.parse(JSON.stringify(weeklyTimetableData));
+                ensureWeeklyScheduleIds();
                 saveState();
             }
         }
@@ -1321,8 +1389,11 @@
         }
 
         function resetDataModal() {
-            if (confirm("Ma hubtaa inaad rabto inaad nadiifiso xogtaada oo dhan (courses, assignments, alarms, taariikhda)? Tallaabadan lama soo celin karo.")) {
+            if (confirm("Ma hubtaa inaad rabto inaad nadiifiso xogtaada oo dhan (courses, assignments, alarms, taariikhda, jadwalka)? Tallaabadan lama soo celin karo.")) {
                 appState = JSON.parse(JSON.stringify(emptyData));
+                appState.weeklySchedule = JSON.parse(JSON.stringify(weeklyTimetableData));
+                ensureWeeklyScheduleIds();
+                selectedGoalsDate = todayKey();
                 saveState();
                 renderAll();
                 renderAlarmCards();
@@ -1355,6 +1426,7 @@
         function renderAnalytics() {
             if (!currentUsername) return;
             if (!appState.history) appState.history = {};
+            if (!appState.dailyTasksByDate) appState.dailyTasksByDate = {};
 
             const days = [];
             for (let i = 6; i >= 0; i--) {
@@ -1362,8 +1434,10 @@
                 d.setDate(d.getDate() - i);
                 const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                 const label = d.toLocaleDateString('en-US', { weekday: 'short' });
-                const entry = appState.history[key] || { minutes: 0, sessions: 0, tasks: 0 };
-                days.push({ key, label, ...entry });
+                const historyEntry = appState.history[key] || { minutes: 0, sessions: 0 };
+                const dayTasks = appState.dailyTasksByDate[key] || [];
+                const tasksDone = dayTasks.filter(t => t.done).length;
+                days.push({ key, label, minutes: historyEntry.minutes || 0, sessions: historyEntry.sessions || 0, tasks: tasksDone });
             }
 
             const weekMinutes = days.reduce((s, d) => s + d.minutes, 0);
@@ -1398,19 +1472,43 @@
             const labels = days.map(d => d.label);
             const minutesData = days.map(d => d.minutes);
             const tasksData = days.map(d => d.tasks);
+            const maxMinutes = Math.max(...minutesData, 0);
+            const maxTasks = Math.max(...tasksData, 0);
 
             if (minutesChartInstance) minutesChartInstance.destroy();
             minutesChartInstance = new Chart(minutesCanvas, {
                 type: 'bar',
-                data: { labels, datasets: [{ label: 'Minutes', data: minutesData, backgroundColor: '#EA580C', borderRadius: 6 }] },
-                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } }, responsive: true, maintainAspectRatio: false }
+                data: { labels, datasets: [{
+                    label: 'Minutes', data: minutesData,
+                    backgroundColor: '#EA580C', borderRadius: 6,
+                    barPercentage: 0.45, categoryPercentage: 0.6, maxBarThickness: 28
+                }] },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, suggestedMax: Math.max(maxMinutes + 10, 30), grid: { color: '#F1F5F9' }, ticks: { precision: 0 } }
+                    },
+                    responsive: true, maintainAspectRatio: false
+                }
             });
 
             if (tasksChartInstance) tasksChartInstance.destroy();
             tasksChartInstance = new Chart(tasksCanvas, {
                 type: 'bar',
-                data: { labels, datasets: [{ label: 'Tasks', data: tasksData, backgroundColor: '#9A3412', borderRadius: 6 }] },
-                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, responsive: true, maintainAspectRatio: false }
+                data: { labels, datasets: [{
+                    label: 'Tasks', data: tasksData,
+                    backgroundColor: '#9A3412', borderRadius: 6,
+                    barPercentage: 0.45, categoryPercentage: 0.6, maxBarThickness: 28
+                }] },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, suggestedMax: Math.max(maxTasks + 2, 4), grid: { color: '#F1F5F9' }, ticks: { stepSize: 1, precision: 0 } }
+                    },
+                    responsive: true, maintainAspectRatio: false
+                }
             });
         }
 
@@ -1498,7 +1596,7 @@
         }
 
         function renderDailyScheduleWidget() {
-            const data = weeklyTimetableData[selectedScheduleDay] || weeklyTimetableData['Sabti'];
+            const data = appState.weeklySchedule[selectedScheduleDay] || appState.weeklySchedule['Sabti'];
             document.getElementById('scheduleDayBadge').innerText = `Maalinta: ${selectedScheduleDay}`;
 
             // Render Routine Badges
@@ -1531,9 +1629,14 @@
                     <td class="p-3 font-semibold text-slate-700">${item.count} Promodo</td>
                     <td class="p-3 text-slate-500 font-mono">${totalMins} mins</td>
                     <td class="p-3 text-right">
-                        <button onclick="startSpecificPomodoro('${item.subject}')" class="px-2.5 py-1 bg-pupil-600 hover:bg-pupil-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex items-center gap-1 ml-auto">
-                            <i class="fa-solid fa-play text-[9px]"></i> Start
-                        </button>
+                        <div class="flex items-center justify-end gap-1.5">
+                            <button onclick="startSpecificPomodoro('${item.subject}')" class="px-2.5 py-1 bg-pupil-600 hover:bg-pupil-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex items-center gap-1">
+                                <i class="fa-solid fa-play text-[9px]"></i> Start
+                            </button>
+                            <button onclick="deleteWeeklySubject('${selectedScheduleDay}', '${item.id}')" class="w-7 h-7 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-all">
+                                <i class="fa-solid fa-trash-can text-[10px]"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1557,20 +1660,32 @@
             if (!grid) return;
             grid.innerHTML = '';
 
-            Object.keys(weeklyTimetableData).forEach(day => {
-                const info = weeklyTimetableData[day];
+            Object.keys(appState.weeklySchedule).forEach(day => {
+                const info = appState.weeklySchedule[day];
                 const card = document.createElement('div');
                 card.className = `p-4 rounded-2xl border transition-all ${
                     day === selectedScheduleDay ? 'bg-pupil-50/40 border-pupil-300 shadow-sm' : 'bg-slate-50/50 border-slate-200'
                 }`;
 
                 let pomodorosList = info.pomodoros.map(p => `
-                    <div class="flex items-center justify-between text-xs py-1 border-b border-slate-100 last:border-0">
-                        <span class="font-semibold text-slate-700 flex items-center gap-1.5">
-                            <i class="fa-solid ${p.icon} ${p.color}"></i> ${p.subject}
+                    <div class="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 last:border-0 group">
+                        <span class="font-semibold text-slate-700 flex items-center gap-1.5 truncate pr-1">
+                            <i class="fa-solid ${p.icon} ${p.color} flex-shrink-0"></i> <span class="truncate">${p.subject}</span>
                         </span>
-                        <span class="bg-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px]">${p.count} Promodo</span>
+                        <span class="flex items-center gap-1.5 flex-shrink-0">
+                            <span class="bg-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px]">${p.count} Promodo</span>
+                            <button onclick="deleteWeeklySubject('${day}','${p.id}')" class="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity px-0.5">
+                                <i class="fa-solid fa-xmark text-[11px]"></i>
+                            </button>
+                        </span>
                     </div>
+                `).join('');
+
+                let routinesList = info.routines.map((r, idx) => `
+                    <span class="text-[10px] font-bold bg-white text-emerald-700 border border-emerald-200 pl-2 pr-1 py-0.5 rounded-md flex items-center gap-1">
+                        <i class="fa-solid fa-check text-[9px]"></i> ${r}
+                        <button onclick="removeWeeklyRoutine('${day}',${idx})" class="text-emerald-400 hover:text-rose-500 ml-0.5"><i class="fa-solid fa-xmark text-[9px]"></i></button>
+                    </span>
                 `).join('');
 
                 card.innerHTML = `
@@ -1582,22 +1697,131 @@
                             ${info.pomodoros.reduce((acc, curr) => acc + curr.count, 0)} Pomodoros
                         </span>
                     </div>
-                    <div class="flex flex-wrap gap-1.5 mb-3">
-                        ${info.routines.map(r => `<span class="text-[10px] font-bold bg-white text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md"><i class="fa-solid fa-check text-[9px]"></i> ${r}</span>`).join('')}
+
+                    <div class="flex flex-wrap gap-1.5 mb-2">
+                        ${routinesList}
                     </div>
-                    <div class="space-y-1">
-                        ${pomodorosList}
+                    <form onsubmit="addWeeklyRoutine(event,'${day}')" class="flex items-center gap-1.5 mb-3">
+                        <input type="text" placeholder="+ Add routine (e.g. Gym)" class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] text-slate-700 focus:outline-none focus:border-pupil-500">
+                        <button type="submit" class="w-6 h-6 flex-shrink-0 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 flex items-center justify-center">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                        </button>
+                    </form>
+
+                    <div class="space-y-1 mb-3">
+                        ${pomodorosList || '<p class="text-[10px] text-slate-400 italic py-1">Wali subject lama darin.</p>'}
                     </div>
+
+                    <form onsubmit="addWeeklySubject(event,'${day}')" class="flex items-center gap-1.5">
+                        <input type="text" placeholder="Subject (e.g. Python)" required class="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] text-slate-700 focus:outline-none focus:border-pupil-500">
+                        <input type="number" min="1" max="20" value="1" class="w-12 flex-shrink-0 bg-white border border-slate-200 rounded-lg px-1.5 py-1.5 text-[11px] text-slate-700 text-center focus:outline-none focus:border-pupil-500">
+                        <button type="submit" class="w-7 h-7 flex-shrink-0 rounded-lg bg-pupil-600 hover:bg-pupil-700 text-white flex items-center justify-center">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                        </button>
+                    </form>
                 `;
                 grid.appendChild(card);
             });
+        }
+
+        function addWeeklySubject(e, day) {
+            e.preventDefault();
+            const form = e.target;
+            const nameInput = form.querySelector('input[type="text"]');
+            const countInput = form.querySelector('input[type="number"]');
+            const name = nameInput.value.trim();
+            const count = Math.max(1, parseInt(countInput.value) || 1);
+            if (!name) return;
+
+            if (!appState.weeklySchedule[day]) appState.weeklySchedule[day] = { routines: [], pomodoros: [] };
+            appState.weeklySchedule[day].pomodoros.push({
+                id: 'wt_' + Math.random().toString(36).slice(2, 9),
+                subject: name,
+                count: count,
+                icon: 'fa-book',
+                color: 'text-slate-600'
+            });
+            saveState();
+            renderFullWeeklyMatrix();
+            renderDailyScheduleWidget();
+            showToast(`${name} loo daray ${day}`, "success");
+        }
+
+        function deleteWeeklySubject(day, id) {
+            if (!appState.weeklySchedule[day]) return;
+            appState.weeklySchedule[day].pomodoros = appState.weeklySchedule[day].pomodoros.filter(p => p.id !== id);
+            saveState();
+            renderFullWeeklyMatrix();
+            renderDailyScheduleWidget();
+        }
+
+        function addWeeklyRoutine(e, day) {
+            e.preventDefault();
+            const input = e.target.querySelector('input[type="text"]');
+            const val = input.value.trim();
+            if (!val) return;
+            if (!appState.weeklySchedule[day].routines) appState.weeklySchedule[day].routines = [];
+            appState.weeklySchedule[day].routines.push(val);
+            saveState();
+            renderFullWeeklyMatrix();
+            renderDailyScheduleWidget();
+        }
+
+        function removeWeeklyRoutine(day, idx) {
+            appState.weeklySchedule[day].routines.splice(idx, 1);
+            saveState();
+            renderFullWeeklyMatrix();
+            renderDailyScheduleWidget();
+        }
+
+        let selectedGoalsDate = null; // set in bootApp() to todayKey()
+
+        function formatGoalsDateLabel(dateStr) {
+            const d = new Date(dateStr + 'T00:00:00');
+            const todayStr = todayKey();
+            const y = new Date(); y.setDate(y.getDate() - 1);
+            const yesterdayStr = y.getFullYear() + '-' + String(y.getMonth() + 1).padStart(2, '0') + '-' + String(y.getDate()).padStart(2, '0');
+            const t = new Date(); t.setDate(t.getDate() + 1);
+            const tomorrowStr = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+            const niceDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            if (dateStr === todayStr) return `Today · ${niceDate}`;
+            if (dateStr === yesterdayStr) return `Yesterday · ${niceDate}`;
+            if (dateStr === tomorrowStr) return `Tomorrow · ${niceDate}`;
+            return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        function dateKeyFromDate(d) {
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        function shiftGoalsDate(deltaDays) {
+            const d = new Date(selectedGoalsDate + 'T00:00:00');
+            d.setDate(d.getDate() + deltaDays);
+            selectedGoalsDate = dateKeyFromDate(d);
+            renderDailyStudyPlan();
+        }
+
+        function jumpToTodayGoals() {
+            selectedGoalsDate = todayKey();
+            renderDailyStudyPlan();
+        }
+
+        function selectGoalsDate(dateStr) {
+            selectedGoalsDate = dateStr;
+            renderDailyStudyPlan();
+        }
+
+        function getTasksForDate(dateStr) {
+            if (!appState.dailyTasksByDate) appState.dailyTasksByDate = {};
+            if (!appState.dailyTasksByDate[dateStr]) appState.dailyTasksByDate[dateStr] = [];
+            return appState.dailyTasksByDate[dateStr];
         }
 
         function renderDailyStudyPlan() {
             const container = document.getElementById('dailyTaskList');
             container.innerHTML = '';
 
-            const tasks = appState.dailyTasks || [];
+            const tasks = getTasksForDate(selectedGoalsDate);
             const completedCount = tasks.filter(t => t.done).length;
             const totalCount = tasks.length;
             const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -1605,27 +1829,68 @@
             document.getElementById('studyPlanProgressText').innerText = `${completedCount}/${totalCount} completed`;
             document.getElementById('studyPlanProgressBar').style.width = `${percentage}%`;
 
+            const labelEl = document.getElementById('goalsDateLabel');
+            if (labelEl) labelEl.innerText = formatGoalsDateLabel(selectedGoalsDate);
+            const jumpBtn = document.getElementById('goalsJumpTodayBtn');
+            if (jumpBtn) jumpBtn.classList.toggle('hidden', selectedGoalsDate === todayKey());
+
             if (tasks.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 py-2 italic">No study tasks planned for today. Add one above!</p>`;
-                return;
+                container.innerHTML = `<p class="text-xs text-slate-400 py-2 italic">Wax goals ah lama qorin taariikhdan. Ku dar mid sare!</p>`;
+            } else {
+                tasks.forEach((task, idx) => {
+                    const item = document.createElement('div');
+                    item.className = `flex items-center justify-between p-3 rounded-xl border transition-all ${
+                        task.done ? 'bg-slate-50/60 border-slate-200' : 'bg-white border-slate-200/80 shadow-sm'
+                    }`;
+                    item.innerHTML = `
+                        <div class="flex items-center gap-3 overflow-hidden pr-2">
+                            <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleDailyTask(${idx})" class="w-4 h-4 rounded text-pupil-600 focus:ring-pupil-500 cursor-pointer">
+                            <span class="text-xs font-semibold ${task.done ? 'line-through text-slate-400' : 'text-slate-800'} truncate">
+                                ${task.title}
+                            </span>
+                        </div>
+                        <button onclick="deleteDailyTask(${idx})" class="text-slate-300 hover:text-rose-600 p-1 flex-shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>
+                    `;
+                    container.appendChild(item);
+                });
             }
 
-            tasks.forEach((task, idx) => {
-                const item = document.createElement('div');
-                item.className = `flex items-center justify-between p-3 rounded-xl border transition-all ${
-                    task.done ? 'bg-slate-50/60 border-slate-200' : 'bg-white border-slate-200/80 shadow-sm'
+            renderGoalsHistoryStrip();
+        }
+
+        function renderGoalsHistoryStrip() {
+            const strip = document.getElementById('goalsHistoryStrip');
+            if (!strip) return;
+            strip.innerHTML = '';
+
+            const centerDate = new Date(selectedGoalsDate + 'T00:00:00');
+            const todayStr = todayKey();
+
+            for (let offset = -3; offset <= 3; offset++) {
+                const d = new Date(centerDate);
+                d.setDate(d.getDate() + offset);
+                const key = dateKeyFromDate(d);
+                const tasks = (appState.dailyTasksByDate && appState.dailyTasksByDate[key]) || [];
+                const total = tasks.length;
+                const done = tasks.filter(t => t.done).length;
+                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                const isSelected = key === selectedGoalsDate;
+                const isToday = key === todayStr;
+
+                const chip = document.createElement('button');
+                chip.onclick = () => selectGoalsDate(key);
+                chip.className = `flex-1 flex flex-col items-center gap-1 py-2 rounded-xl border transition-all ${
+                    isSelected ? 'border-pupil-500 bg-pupil-50' : 'border-transparent hover:bg-slate-50'
                 }`;
-                item.innerHTML = `
-                    <div class="flex items-center gap-3 overflow-hidden pr-2">
-                        <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleDailyTask(${idx})" class="w-4 h-4 rounded text-pupil-600 focus:ring-pupil-500 cursor-pointer">
-                        <span class="text-xs font-semibold ${task.done ? 'line-through text-slate-400' : 'text-slate-800'} truncate">
-                            ${task.title}
-                        </span>
-                    </div>
-                    <button onclick="deleteDailyTask(${idx})" class="text-slate-300 hover:text-rose-600 p-1 flex-shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>
+                const barColor = total === 0 ? '#E2E8F0' : `rgba(234,88,12,${(0.25 + (pct / 100) * 0.6).toFixed(2)})`;
+                chip.innerHTML = `
+                    <span class="text-[9px] font-bold uppercase ${isSelected ? 'text-pupil-700' : 'text-slate-400'}">${d.toLocaleDateString('en-US', { weekday: 'narrow' })}</span>
+                    <span class="text-xs font-black ${isSelected ? 'text-pupil-800' : 'text-slate-700'}">${d.getDate()}</span>
+                    <span class="w-5 h-1.5 rounded-full" style="background-color:${barColor}"></span>
+                    ${isToday ? '<span class="w-1 h-1 rounded-full bg-pupil-500"></span>' : '<span class="w-1 h-1"></span>'}
                 `;
-                container.appendChild(item);
-            });
+                strip.appendChild(chip);
+            }
         }
 
         function addDailyTask(e) {
@@ -1634,36 +1899,33 @@
             const val = input.value.trim();
             if (!val) return;
 
-            if (!appState.dailyTasks) appState.dailyTasks = [];
-            appState.dailyTasks.push({ id: 'dt_' + Date.now(), title: val, done: false });
+            const tasks = getTasksForDate(selectedGoalsDate);
+            tasks.push({ id: 'dt_' + Date.now(), title: val, done: false });
             saveState();
             renderDailyStudyPlan();
             input.value = '';
-            showToast("Added to today's plan!", "success");
+            showToast("Loo daray liiska!", "success");
         }
 
         function toggleDailyTask(index) {
-            if (appState.dailyTasks && appState.dailyTasks[index]) {
-                appState.dailyTasks[index].done = !appState.dailyTasks[index].done;
-                if (appState.dailyTasks[index].done) {
-                    logDailyActivity({ tasks: 1 });
-                } else {
-                    logDailyActivity({ tasks: -1 });
-                }
+            const tasks = getTasksForDate(selectedGoalsDate);
+            if (tasks[index]) {
+                tasks[index].done = !tasks[index].done;
                 saveState();
                 renderDailyStudyPlan();
-                if (appState.dailyTasks[index].done) {
+                renderAnalytics();
+                if (tasks[index].done) {
                     showToast("Task completed! Keep up the momentum 🎉", "success");
                 }
             }
         }
 
         function deleteDailyTask(index) {
-            if (appState.dailyTasks) {
-                appState.dailyTasks.splice(index, 1);
-                saveState();
-                renderDailyStudyPlan();
-            }
+            const tasks = getTasksForDate(selectedGoalsDate);
+            tasks.splice(index, 1);
+            saveState();
+            renderDailyStudyPlan();
+            renderAnalytics();
         }
 
         function updateStatsHeader() {
@@ -1989,6 +2251,7 @@
             if (isTimerRunning) {
                 clearInterval(timerInterval);
                 isTimerRunning = false;
+                timerEndTimestamp = null; // timerSeconds already holds the remaining time
                 if (btn) btn.innerHTML = `<i class="fa-solid fa-play"></i>`;
                 if (dashBtn) dashBtn.innerHTML = `<i class="fa-solid fa-play"></i> Start Sprint`;
                 document.getElementById('timerStatus').innerText = "Paused";
@@ -1997,46 +2260,88 @@
                 isTimerRunning = true;
                 if (btn) btn.innerHTML = `<i class="fa-solid fa-pause"></i>`;
                 if (dashBtn) dashBtn.innerHTML = `<i class="fa-solid fa-pause"></i> Pause`;
-                
+
                 const modeText = timerMode === 'work' ? "Focus session in progress..." : "Enjoy your break!";
                 document.getElementById('timerStatus').innerText = modeText;
                 document.getElementById('dashTimerStatus').innerText = modeText;
 
-                timerInterval = setInterval(() => {
-                    if (timerSeconds > 0) {
-                        timerSeconds--;
-                        updateTimerUI();
-                    } else {
-                        clearInterval(timerInterval);
-                        isTimerRunning = false;
-                        
-                        if (timerMode === 'work') {
-                            appState.studyStats.totalMinutes += 25;
-                            appState.studyStats.completedSessions = (appState.studyStats.completedSessions || 0) + 1;
-                            logDailyActivity({ minutes: 25, sessions: 1 });
-                            saveState();
-                            updateStatsHeader();
-                            showToast("Pomodoro session completed! Take a 5 min break.", "success");
-                            switchTimerMode('break');
-                        } else {
-                            showToast("Break over! Ready to focus again?", "info");
-                            switchTimerMode('work');
-                        }
-                    }
-                }, 1000);
+                // Timestamp-based countdown: stays correct even if the tab is
+                // minimized/backgrounded and setInterval gets throttled.
+                timerEndTimestamp = Date.now() + timerSeconds * 1000;
+                timerInterval = setInterval(tickTimer, 1000);
+            }
+        }
+
+        function tickTimer() {
+            if (!isTimerRunning || !timerEndTimestamp) return;
+            const remainingMs = timerEndTimestamp - Date.now();
+            timerSeconds = Math.max(0, Math.round(remainingMs / 1000));
+            updateTimerUI();
+
+            if (remainingMs <= 0) {
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+                timerEndTimestamp = null;
+                handleTimerComplete();
+            }
+        }
+
+        // Catch up immediately when the tab regains focus, instead of waiting
+        // for the next throttled tick - keeps the display accurate right away.
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && isTimerRunning) {
+                tickTimer();
+            }
+        });
+
+        function handleTimerComplete() {
+            if (timerMode === 'work') {
+                appState.studyStats.totalMinutes += workDurationMinutes;
+                appState.studyStats.completedSessions = (appState.studyStats.completedSessions || 0) + 1;
+                logDailyActivity({ minutes: workDurationMinutes, sessions: 1 }); // break time is never logged here
+                saveState();
+                updateStatsHeader();
+                triggerTimerRing('Session Dhammaaday!', workDurationMinutes + ' daqiiqo waad shaqaysay - hadda 5 daqiiqo nasasho qaado.');
+            } else {
+                // Break time is intentionally excluded from study stats/history
+                triggerTimerRing('Break-ku wuu Dhammaaday!', 'Diyaar u noqo inaad mar kale diirad saarto.');
+            }
+        }
+
+        function advanceTimerCycle() {
+            const nextMode = timerMode === 'work' ? 'break' : 'work';
+            switchTimerMode(nextMode);
+            toggleTimer(); // auto-start the next phase - no manual restart needed
+        }
+
+        function setWorkDuration(mins) {
+            workDurationMinutes = mins;
+            document.querySelectorAll('.duration-preset-btn').forEach(b => {
+                const isActive = parseInt(b.dataset.mins) === mins;
+                b.classList.toggle('bg-pupil-600', isActive);
+                b.classList.toggle('text-white', isActive);
+                b.classList.toggle('bg-slate-100', !isActive);
+                b.classList.toggle('text-slate-600', !isActive);
+            });
+            if (!isTimerRunning && timerMode === 'work') {
+                timerSeconds = mins * 60;
+                totalTimerSeconds = mins * 60;
+                document.getElementById('timerModeText').innerText = `Focus Area (Study - ${mins} Min)`;
+                updateTimerUI();
             }
         }
 
         function resetTimer() {
             clearInterval(timerInterval);
             isTimerRunning = false;
-            
+            timerEndTimestamp = null;
+
             const btn = document.getElementById('timerToggleBtn');
             const dashBtn = document.getElementById('dashTimerToggleBtn');
             if (btn) btn.innerHTML = `<i class="fa-solid fa-play"></i>`;
             if (dashBtn) dashBtn.innerHTML = `<i class="fa-solid fa-play"></i> Start Sprint`;
 
-            timerSeconds = timerMode === 'work' ? 25 * 60 : 5 * 60;
+            timerSeconds = timerMode === 'work' ? workDurationMinutes * 60 : 5 * 60;
             totalTimerSeconds = timerSeconds;
             document.getElementById('timerStatus').innerText = "Get ready to focus";
             document.getElementById('dashTimerStatus').innerText = "Ready for a focus sprint?";
@@ -2046,6 +2351,7 @@
         function switchTimerMode(forceMode = null) {
             clearInterval(timerInterval);
             isTimerRunning = false;
+            timerEndTimestamp = null;
 
             const btn = document.getElementById('timerToggleBtn');
             const dashBtn = document.getElementById('dashTimerToggleBtn');
@@ -2059,9 +2365,9 @@
             }
 
             if (timerMode === 'work') {
-                timerSeconds = 25 * 60;
-                totalTimerSeconds = 25 * 60;
-                document.getElementById('timerModeText').innerText = "Focus Area (Study - 25 Min)";
+                timerSeconds = workDurationMinutes * 60;
+                totalTimerSeconds = workDurationMinutes * 60;
+                document.getElementById('timerModeText').innerText = `Focus Area (Study - ${workDurationMinutes} Min)`;
                 document.getElementById('dashTimerModeBadge').innerText = "STUDY";
             } else {
                 timerSeconds = 5 * 60;
@@ -2621,6 +2927,7 @@
         function triggerAlarmRing(alarm, isOneTime) {
             if (isAlarmRinging) return;
             isAlarmRinging = true;
+            ringContext = 'alarm';
 
             if (isOneTime) {
                 alarm.enabled = false;
@@ -2629,16 +2936,40 @@
             }
 
             const t12 = formatAlarmTime12h(alarm.time);
+            document.getElementById('alarmRingEyebrow').innerText = 'ALARM-KA WUU DHACAY';
             document.getElementById('alarmRingTime').innerText = `${t12.display} ${t12.period}`;
             document.getElementById('alarmRingLabel').innerText = alarm.label || 'Waqtigii aad dooratay ayaa gaartay!';
+            document.getElementById('alarmRingStopIcon').className = 'fa-solid fa-stop';
+            document.getElementById('alarmRingStopBtnText').innerText = 'Joojiso Alarm-ka';
             openModal('alarmRingOverlay');
             playAlarmSound(alarm.sound || 'classic');
+        }
+
+        function triggerTimerRing(titleText, subtitleText) {
+            if (isAlarmRinging) return;
+            isAlarmRinging = true;
+            ringContext = 'timer';
+
+            document.getElementById('alarmRingEyebrow').innerText = timerMode === 'work' ? 'FOCUS SESSION' : 'BREAK TIME';
+            document.getElementById('alarmRingTime').innerText = titleText;
+            document.getElementById('alarmRingLabel').innerText = subtitleText;
+            document.getElementById('alarmRingStopIcon').className = timerMode === 'work' ? 'fa-solid fa-mug-hot' : 'fa-solid fa-play';
+            document.getElementById('alarmRingStopBtnText').innerText = timerMode === 'work' ? 'Bilow Nasashada (5 min)' : 'Bilow Focus-ka Xiga';
+            openModal('alarmRingOverlay');
+            playAlarmSound('classic');
         }
 
         function stopAlarmRing() {
             isAlarmRinging = false;
             closeModal('alarmRingOverlay');
             stopAlarmSound();
+
+            if (ringContext === 'timer') {
+                ringContext = null;
+                advanceTimerCycle();
+            } else {
+                ringContext = null;
+            }
         }
 
         function playAlarmSound(soundId) {
