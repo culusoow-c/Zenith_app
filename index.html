@@ -720,9 +720,10 @@
 
                         <!-- Session length presets -->
                         <div id="durationPresetRow" class="flex items-center gap-2 mb-2">
+                            <button data-mins="10" onclick="setWorkDuration(10)" class="duration-preset-btn px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-slate-100 text-slate-600">10m</button>
+                            <button data-mins="15" onclick="setWorkDuration(15)" class="duration-preset-btn px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-slate-100 text-slate-600">15m</button>
                             <button data-mins="25" onclick="setWorkDuration(25)" class="duration-preset-btn px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-pupil-600 text-white">25m</button>
-                            <button data-mins="45" onclick="setWorkDuration(45)" class="duration-preset-btn px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-slate-100 text-slate-600">45m</button>
-                            <button data-mins="50" onclick="setWorkDuration(50)" class="duration-preset-btn px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-slate-100 text-slate-600">50m</button>
+                            <button data-mins="30" onclick="setWorkDuration(30)" class="duration-preset-btn px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all bg-slate-100 text-slate-600">30m</button>
                         </div>
 
                         <div class="my-6 relative flex items-center justify-center">
@@ -753,9 +754,17 @@
                     <!-- Side Stats & Ergonomic Advice -->
                     <div class="space-y-6">
                         <div class="bg-white p-6 rounded-2xl border border-slate-200/80 pupil-card-shadow">
-                            <h4 class="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                                <i class="fa-solid fa-trophy text-amber-500"></i> Today's Study Stats
-                            </h4>
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="font-bold text-slate-900 flex items-center gap-2">
+                                    <i class="fa-solid fa-trophy text-amber-500"></i> Study Stats
+                                </h4>
+                                <select id="studyStatsViewSelect" onchange="setStudyStatsView(this.value)" class="text-[10px] font-bold bg-slate-100 border-0 rounded-lg px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-1 focus:ring-pupil-500">
+                                    <option value="today">Today</option>
+                                    <option value="thisWeek">This Week</option>
+                                    <option value="lastWeek">Last Week</option>
+                                    <option value="thisMonth">This Month</option>
+                                </select>
+                            </div>
                             <div class="space-y-4 text-sm">
                                 <div class="flex justify-between items-center">
                                     <span class="text-slate-500 font-medium">Completed Sessions:</span>
@@ -763,7 +772,7 @@
                                 </div>
                                 <div class="flex justify-between items-center">
                                     <span class="text-slate-500 font-medium">Total Focus Time:</span>
-                                    <span id="todayStudyMinutes" class="font-extrabold text-pupil-600">0 mins</span>
+                                    <span id="todayStudyMinutes" class="font-extrabold text-pupil-600">0m</span>
                                 </div>
                             </div>
                         </div>
@@ -806,8 +815,11 @@
                         <p id="analyticsRangeSubtitle" class="text-xs text-slate-500 mt-1">7-dii maalmood ee lasoo dhaafay — sida aad u shaqaysay maalin kasta.</p>
                     </div>
                     <div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1 text-xs font-bold">
-                        <button id="rangeBtn7" onclick="setAnalyticsRange(7)" class="px-3.5 py-2 rounded-lg transition-all bg-white text-pupil-700 shadow-sm">7 Days</button>
-                        <button id="rangeBtn30" onclick="setAnalyticsRange(30)" class="px-3.5 py-2 rounded-lg transition-all text-slate-500">Last Month</button>
+                        <button id="rangeBtn7" onclick="setAnalyticsRange(7)" class="px-3 py-2 rounded-lg transition-all bg-white text-pupil-700 shadow-sm">7 Days</button>
+                        <button id="rangeBtnW1" onclick="setAnalyticsWeek(1)" title="Week 1" class="px-2.5 py-2 rounded-lg transition-all text-slate-500">W1</button>
+                        <button id="rangeBtnW2" onclick="setAnalyticsWeek(2)" title="Week 2" class="px-2.5 py-2 rounded-lg transition-all text-slate-500">W2</button>
+                        <button id="rangeBtnW3" onclick="setAnalyticsWeek(3)" title="Week 3" class="px-2.5 py-2 rounded-lg transition-all text-slate-500">W3</button>
+                        <button id="rangeBtnW4" onclick="setAnalyticsWeek(4)" title="Week 4" class="px-2.5 py-2 rounded-lg transition-all text-slate-500">W4</button>
                     </div>
                 </div>
 
@@ -838,12 +850,9 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Study Minutes Chart -->
                     <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow">
-                        <h4 id="analyticsMinutesChartTitle" class="font-bold text-slate-900 mb-1 flex items-center gap-2">
+                        <h4 id="analyticsMinutesChartTitle" class="font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <i class="fa-solid fa-clock text-pupil-600"></i> Wakhtiga Focus-ka (7 maalmood)
                         </h4>
-                        <p class="text-[10px] text-slate-400 mb-3 flex items-center gap-1.5">
-                            <span class="w-3 h-0.5 bg-pupil-900 inline-block"></span> Trend (celceliska socda)
-                        </p>
                         <div class="relative h-56">
                             <canvas id="analyticsMinutesChart"></canvas>
                         </div>
@@ -857,6 +866,17 @@
                         <div class="relative h-56">
                             <canvas id="analyticsTasksChart"></canvas>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Trend Chart (separate from the bar chart) -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200/70 pupil-card-shadow">
+                    <h4 class="font-bold text-slate-900 mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-pupil-900"></i> Trend-ka Wakhtiga Focus-ka
+                    </h4>
+                    <p class="text-[10px] text-slate-400 mb-3">Celceliska socda — kuu tusaya kor/hoos-u-socodka guud, ma aha xogta maalin kasta.</p>
+                    <div class="relative h-48">
+                        <canvas id="analyticsTrendChart"></canvas>
                     </div>
                 </div>
 
@@ -1432,36 +1452,57 @@
 
         let minutesChartInstance = null;
         let tasksChartInstance = null;
+        let trendChartInstance = null;
 
+        let analyticsViewMode = 'range'; // 'range' | 'week'
         let analyticsRangeDays = 7;
+        let selectedAnalyticsWeek = 1; // 1-4, only used when analyticsViewMode === 'week'
+
+        function clearAnalyticsRangeButtons() {
+            ['rangeBtn7', 'rangeBtnW1', 'rangeBtnW2', 'rangeBtnW3', 'rangeBtnW4'].forEach(id => {
+                const b = document.getElementById(id);
+                if (!b) return;
+                b.classList.remove('bg-white', 'text-pupil-700', 'shadow-sm');
+                b.classList.add('text-slate-500');
+            });
+        }
+
+        function activateAnalyticsRangeButton(id) {
+            const b = document.getElementById(id);
+            if (!b) return;
+            b.classList.add('bg-white', 'text-pupil-700', 'shadow-sm');
+            b.classList.remove('text-slate-500');
+        }
 
         function setAnalyticsRange(days) {
+            analyticsViewMode = 'range';
             analyticsRangeDays = days;
-            const btn7 = document.getElementById('rangeBtn7');
-            const btn30 = document.getElementById('rangeBtn30');
-            const is7 = days === 7;
-            if (btn7) { btn7.classList.toggle('bg-white', is7); btn7.classList.toggle('text-pupil-700', is7); btn7.classList.toggle('shadow-sm', is7); btn7.classList.toggle('text-slate-500', !is7); }
-            if (btn30) { btn30.classList.toggle('bg-white', !is7); btn30.classList.toggle('text-pupil-700', !is7); btn30.classList.toggle('shadow-sm', !is7); btn30.classList.toggle('text-slate-500', is7); }
+            clearAnalyticsRangeButtons();
+            activateAnalyticsRangeButton('rangeBtn7');
             renderAnalytics();
         }
 
-        function showStreakReminder() {
-            const streak = computeCurrentStreak();
-            const key = todayKey();
-            const historyEntry = appState.history && appState.history[key];
-            const dayTasks = (appState.dailyTasksByDate && appState.dailyTasksByDate[key]) || [];
-            const didSomethingToday = (historyEntry && historyEntry.minutes > 0) || dayTasks.some(t => t.done);
+        function setAnalyticsWeek(weekNum) {
+            analyticsViewMode = 'week';
+            selectedAnalyticsWeek = weekNum;
+            clearAnalyticsRangeButtons();
+            activateAnalyticsRangeButton('rangeBtnW' + weekNum);
+            renderAnalytics();
+        }
 
-            let msg;
-            if (streak === 0) {
-                msg = "Bilow streak cusub maanta — hal task ama Pomodoro dhammaystir! 🔥";
-            } else if (didSomethingToday) {
-                msg = `🔥 ${streak}-Day Streak — sii wad, maanta waad shaqaysay!`;
-            } else {
-                msg = `🔥 ${streak}-Day Streak! Maanta wax qabo si aadan u jebin.`;
+        function getWeekDateRange(weekNum) {
+            // Splits the CURRENT calendar month into 4 chunks: 1-7, 8-14, 15-21, 22-end.
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const startDay = (weekNum - 1) * 7 + 1;
+            const endDay = weekNum === 4 ? daysInMonth : Math.min(weekNum * 7, daysInMonth);
+            const dates = [];
+            for (let d = startDay; d <= endDay; d++) {
+                dates.push(new Date(year, month, d));
             }
-
-            setTimeout(() => showToast(msg, "info"), 900);
+            return dates;
         }
 
         function computeCurrentStreak() {
@@ -1487,37 +1528,72 @@
             return streak;
         }
 
+        function showStreakReminder() {
+            const streak = computeCurrentStreak();
+            const key = todayKey();
+            const historyEntry = appState.history && appState.history[key];
+            const dayTasks = (appState.dailyTasksByDate && appState.dailyTasksByDate[key]) || [];
+            const didSomethingToday = (historyEntry && historyEntry.minutes > 0) || dayTasks.some(t => t.done);
+
+            let msg;
+            if (streak === 0) {
+                msg = "Bilow streak cusub maanta — hal task ama Pomodoro dhammaystir! \ud83d\udd25";
+            } else if (didSomethingToday) {
+                msg = `\ud83d\udd25 ${streak}-Day Streak — sii wad, maanta waad shaqaysay!`;
+            } else {
+                msg = `\ud83d\udd25 ${streak}-Day Streak! Maanta wax qabo si aadan u jebin.`;
+            }
+
+            setTimeout(() => showToast(msg, "info"), 900);
+        }
+
         function renderAnalytics() {
             if (!currentUsername) return;
             if (!appState.history) appState.history = {};
             if (!appState.dailyTasksByDate) appState.dailyTasksByDate = {};
 
-            const rangeDays = analyticsRangeDays;
-            const days = [];
-            for (let i = rangeDays - 1; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                const label = rangeDays <= 7
-                    ? d.toLocaleDateString('en-US', { weekday: 'short' })
-                    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                const historyEntry = appState.history[key] || { minutes: 0, sessions: 0 };
-                const dayTasks = appState.dailyTasksByDate[key] || [];
-                const tasksDone = dayTasks.filter(t => t.done).length;
-                days.push({ key, label, minutes: historyEntry.minutes || 0, sessions: historyEntry.sessions || 0, tasks: tasksDone });
+            let days = [];
+            let rangeText, subtitleText;
+
+            if (analyticsViewMode === 'week') {
+                const weekDates = getWeekDateRange(selectedAnalyticsWeek);
+                days = weekDates.map(d => {
+                    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                    const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+                    const historyEntry = appState.history[key] || { minutes: 0, sessions: 0 };
+                    const dayTasks = appState.dailyTasksByDate[key] || [];
+                    const tasksDone = dayTasks.filter(t => t.done).length;
+                    return { key, label, minutes: historyEntry.minutes || 0, sessions: historyEntry.sessions || 0, tasks: tasksDone };
+                });
+                const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
+                rangeText = `Week ${selectedAnalyticsWeek}`;
+                subtitleText = `${monthName} — Week ${selectedAnalyticsWeek} (${weekDates[0].getDate()}–${weekDates[weekDates.length - 1].getDate()}) — sida aad u shaqaysay maalin kasta.`;
+            } else {
+                const rangeDays = analyticsRangeDays;
+                for (let i = rangeDays - 1; i >= 0; i--) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                    const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+                    const historyEntry = appState.history[key] || { minutes: 0, sessions: 0 };
+                    const dayTasks = appState.dailyTasksByDate[key] || [];
+                    const tasksDone = dayTasks.filter(t => t.done).length;
+                    days.push({ key, label, minutes: historyEntry.minutes || 0, sessions: historyEntry.sessions || 0, tasks: tasksDone });
+                }
+                rangeText = '7 maalmood';
+                subtitleText = "7-dii maalmood ee lasoo dhaafay — sida aad u shaqaysay maalin kasta.";
             }
 
             const totalMinutes = days.reduce((s, d) => s + d.minutes, 0);
             const totalTasks = days.reduce((s, d) => s + d.tasks, 0);
-            const avgMinutes = Math.round(totalMinutes / rangeDays);
+            const avgMinutes = days.length > 0 ? Math.round(totalMinutes / days.length) : 0;
             const streak = computeCurrentStreak();
 
-            const rangeText = rangeDays <= 7 ? '7 maalmood' : 'bishii la soo dhaafay';
             const subtitleEl = document.getElementById('analyticsRangeSubtitle');
-            if (subtitleEl) subtitleEl.innerText = `${rangeDays <= 7 ? "7-dii maalmood" : "30-kii maalmood"} ee lasoo dhaafay — sida aad u shaqaysay maalin kasta.`;
-            const l1 = document.getElementById('analyticsRangeLabel1'); if (l1) l1.innerText = rangeDays <= 7 ? 'Todobaadkan' : 'Bishaan';
+            if (subtitleEl) subtitleEl.innerText = subtitleText;
+            const l1 = document.getElementById('analyticsRangeLabel1'); if (l1) l1.innerText = analyticsViewMode === 'week' ? `Week ${selectedAnalyticsWeek}` : 'Todobaadkan';
             const l2 = document.getElementById('analyticsRangeLabel2'); if (l2) l2.innerText = `La dhammeeyay ${rangeText}`;
-            const l3 = document.getElementById('analyticsRangeLabel3'); if (l3) l3.innerText = `Maalin kasta (${rangeDays} maalmood)`;
+            const l3 = document.getElementById('analyticsRangeLabel3'); if (l3) l3.innerText = `Maalin kasta (${days.length} maalmood)`;
             const t1 = document.getElementById('analyticsMinutesChartTitle');
             if (t1) t1.innerHTML = `<i class="fa-solid fa-clock text-pupil-600"></i> Wakhtiga Focus-ka (${rangeText})`;
             const t2 = document.getElementById('analyticsTasksChartTitle');
@@ -1549,6 +1625,7 @@
             if (typeof Chart === 'undefined') return;
             const minutesCanvas = document.getElementById('analyticsMinutesChart');
             const tasksCanvas = document.getElementById('analyticsTasksChart');
+            const trendCanvas = document.getElementById('analyticsTrendChart');
             if (!minutesCanvas || !tasksCanvas) return;
 
             const labels = days.map(d => d.label);
@@ -1556,32 +1633,21 @@
             const tasksData = days.map(d => d.tasks);
             const maxMinutes = Math.max(...minutesData, 0);
             const maxTasks = Math.max(...tasksData, 0);
-            const trendWindow = days.length <= 7 ? 3 : 7;
+            const trendWindow = Math.min(3, days.length);
             const minutesTrend = computeMovingAverage(minutesData, trendWindow);
-            const isLongRange = days.length > 7;
 
             if (minutesChartInstance) minutesChartInstance.destroy();
             minutesChartInstance = new Chart(minutesCanvas, {
-                data: {
-                    labels,
-                    datasets: [
-                        {
-                            type: 'bar', label: 'Minutes', data: minutesData,
-                            backgroundColor: '#EA580C', borderRadius: 6,
-                            barPercentage: 0.45, categoryPercentage: 0.6, maxBarThickness: 28,
-                            order: 2
-                        },
-                        {
-                            type: 'line', label: 'Trend', data: minutesTrend,
-                            borderColor: '#7C2D12', borderWidth: 2, pointRadius: 0,
-                            fill: false, tension: 0.35, order: 1
-                        }
-                    ]
-                },
+                type: 'bar',
+                data: { labels, datasets: [{
+                    label: 'Minutes', data: minutesData,
+                    backgroundColor: '#EA580C', borderRadius: 6,
+                    barPercentage: 0.45, categoryPercentage: 0.6, maxBarThickness: 28
+                }] },
                 options: {
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { display: false }, ticks: isLongRange ? { autoSkip: true, maxTicksLimit: 8, maxRotation: 0 } : {} },
+                        x: { grid: { display: false } },
                         y: { beginAtZero: true, suggestedMax: Math.max(maxMinutes + 10, 30), grid: { color: '#F1F5F9' }, ticks: { precision: 0 } }
                     },
                     responsive: true, maintainAspectRatio: false
@@ -1599,12 +1665,33 @@
                 options: {
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { display: false }, ticks: isLongRange ? { autoSkip: true, maxTicksLimit: 8, maxRotation: 0 } : {} },
+                        x: { grid: { display: false } },
                         y: { beginAtZero: true, suggestedMax: Math.max(maxTasks + 2, 4), grid: { color: '#F1F5F9' }, ticks: { stepSize: 1, precision: 0 } }
                     },
                     responsive: true, maintainAspectRatio: false
                 }
             });
+
+            if (trendCanvas) {
+                if (trendChartInstance) trendChartInstance.destroy();
+                trendChartInstance = new Chart(trendCanvas, {
+                    type: 'line',
+                    data: { labels, datasets: [{
+                        label: 'Trend', data: minutesTrend,
+                        borderColor: '#7C2D12', backgroundColor: 'rgba(124,45,18,0.08)',
+                        borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#7C2D12',
+                        fill: true, tension: 0.35
+                    }] },
+                    options: {
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { beginAtZero: true, suggestedMax: Math.max(maxMinutes + 10, 30), grid: { color: '#F1F5F9' }, ticks: { precision: 0 } }
+                        },
+                        responsive: true, maintainAspectRatio: false
+                    }
+                });
+            }
         }
 
         function renderAnalyticsCourseProgress() {
@@ -2023,6 +2110,75 @@
             renderAnalytics();
         }
 
+        let studyStatsViewMode = 'today';
+
+        function getSaturdayWeekStart(date) {
+            // Weeks start on Saturday throughout this app (matches the Weekly Timetable)
+            const d = new Date(date);
+            const dow = d.getDay(); // 0=Sun..6=Sat
+            const daysSinceSat = (dow + 1) % 7;
+            d.setDate(d.getDate() - daysSinceSat);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        function getHistoryRangeStats(startDate, endDate) {
+            let minutes = 0, sessions = 0;
+            const cur = new Date(startDate);
+            cur.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            end.setHours(0, 0, 0, 0);
+            while (cur <= end) {
+                const key = cur.getFullYear() + '-' + String(cur.getMonth() + 1).padStart(2, '0') + '-' + String(cur.getDate()).padStart(2, '0');
+                const entry = appState.history && appState.history[key];
+                if (entry) { minutes += entry.minutes || 0; sessions += entry.sessions || 0; }
+                cur.setDate(cur.getDate() + 1);
+            }
+            return { minutes, sessions };
+        }
+
+        function formatHoursMinutes(totalMinutes) {
+            const h = Math.floor(totalMinutes / 60);
+            const m = totalMinutes % 60;
+            if (h === 0) return `${m}m`;
+            return `${h}h ${m}m`;
+        }
+
+        function setStudyStatsView(mode) {
+            studyStatsViewMode = mode;
+            const sel = document.getElementById('studyStatsViewSelect');
+            if (sel) sel.value = mode;
+            updateStudyStatsWidget();
+        }
+
+        function updateStudyStatsWidget() {
+            const countEl = document.getElementById('completedSessionsCount');
+            const minsEl = document.getElementById('todayStudyMinutes');
+            if (!countEl || !minsEl) return;
+
+            const now = new Date();
+            let startDate, endDate;
+
+            if (studyStatsViewMode === 'today') {
+                startDate = new Date(now);
+                endDate = new Date(now);
+            } else if (studyStatsViewMode === 'thisWeek') {
+                startDate = getSaturdayWeekStart(now);
+                endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 6);
+            } else if (studyStatsViewMode === 'lastWeek') {
+                const thisWeekStart = getSaturdayWeekStart(now);
+                startDate = new Date(thisWeekStart); startDate.setDate(thisWeekStart.getDate() - 7);
+                endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 6);
+            } else { // thisMonth
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            }
+
+            const stats = getHistoryRangeStats(startDate, endDate);
+            countEl.innerText = stats.sessions;
+            minsEl.innerText = formatHoursMinutes(stats.minutes);
+        }
+
         function updateStatsHeader() {
             const pending = appState.assignments.filter(a => a.status === 'Pending');
             const completedCourses = appState.courses.filter(c => c.progress >= 90);
@@ -2033,8 +2189,7 @@
             const hours = (appState.studyStats.totalMinutes / 60).toFixed(1);
             document.getElementById('statHoursLearned').innerText = Math.round(hours * 18);
             document.getElementById('bannerHoursLearned').innerText = `${hours} hrs learned`;
-            document.getElementById('todayStudyMinutes').innerText = `${appState.studyStats.totalMinutes} mins`;
-            document.getElementById('completedSessionsCount').innerText = appState.studyStats.completedSessions || 0;
+            updateStudyStatsWidget();
         }
 
         function renderDashboardContinueLearning() {
