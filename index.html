@@ -814,12 +814,17 @@
                         <h2 class="text-xl font-bold text-slate-900">Falanqaynta Horumarkaaga</h2>
                         <p id="analyticsRangeSubtitle" class="text-xs text-slate-500 mt-1">7-dii maalmood ee lasoo dhaafay — sida aad u shaqaysay maalin kasta.</p>
                     </div>
-                    <div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1 text-xs font-bold">
-                        <button id="rangeBtn7" onclick="setAnalyticsRange(7)" class="px-3 py-2 rounded-lg transition-all bg-white text-pupil-700 shadow-sm">7 Days</button>
-                        <button id="rangeBtnW1" onclick="setAnalyticsWeek(1)" title="Week 1" class="px-2.5 py-2 rounded-lg transition-all text-slate-500">W1</button>
-                        <button id="rangeBtnW2" onclick="setAnalyticsWeek(2)" title="Week 2" class="px-2.5 py-2 rounded-lg transition-all text-slate-500">W2</button>
-                        <button id="rangeBtnW3" onclick="setAnalyticsWeek(3)" title="Week 3" class="px-2.5 py-2 rounded-lg transition-all text-slate-500">W3</button>
-                        <button id="rangeBtnW4" onclick="setAnalyticsWeek(4)" title="Week 4" class="px-2.5 py-2 rounded-lg transition-all text-slate-500">W4</button>
+                    <div class="flex items-center gap-2 bg-slate-100 rounded-xl p-1.5">
+                        <button onclick="shiftAnalyticsWeek(-1)" class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center text-slate-500 transition-all">
+                            <i class="fa-solid fa-chevron-left text-xs"></i>
+                        </button>
+                        <div class="flex flex-col items-center px-1">
+                            <span id="analyticsWeekLabel" class="text-xs font-bold text-slate-800">Toddobaadkan</span>
+                            <button id="analyticsWeekJumpBtn" onclick="jumpToCurrentAnalyticsWeek()" class="hidden text-[10px] font-bold text-pupil-600 hover:underline leading-none">Toddobaadkan</button>
+                        </div>
+                        <button onclick="shiftAnalyticsWeek(1)" class="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center text-slate-500 transition-all">
+                            <i class="fa-solid fa-chevron-right text-xs"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -874,7 +879,7 @@
                     <h4 class="font-bold text-slate-900 mb-1 flex items-center gap-2">
                         <i class="fa-solid fa-chart-line text-pupil-900"></i> Trend-ka Wakhtiga Focus-ka
                     </h4>
-                    <p class="text-[10px] text-slate-400 mb-3">Celceliska socda — kuu tusaya kor/hoos-u-socodka guud, ma aha xogta maalin kasta.</p>
+                    <p class="text-[10px] text-slate-400 mb-3">Saacadaha Focus-ka — celceliska socda, kuu tusaya kor/hoos-u-socodka guud.</p>
                     <div class="relative h-48">
                         <canvas id="analyticsTrendChart"></canvas>
                     </div>
@@ -1454,55 +1459,35 @@
         let tasksChartInstance = null;
         let trendChartInstance = null;
 
-        let analyticsViewMode = 'range'; // 'range' | 'week'
-        let analyticsRangeDays = 7;
-        let selectedAnalyticsWeek = 1; // 1-4, only used when analyticsViewMode === 'week'
+        let analyticsWeekOffset = 0; // 0 = this week (Sat-Fri), -1 = last week, +1 = next week, etc.
 
-        function clearAnalyticsRangeButtons() {
-            ['rangeBtn7', 'rangeBtnW1', 'rangeBtnW2', 'rangeBtnW3', 'rangeBtnW4'].forEach(id => {
-                const b = document.getElementById(id);
-                if (!b) return;
-                b.classList.remove('bg-white', 'text-pupil-700', 'shadow-sm');
-                b.classList.add('text-slate-500');
-            });
-        }
-
-        function activateAnalyticsRangeButton(id) {
-            const b = document.getElementById(id);
-            if (!b) return;
-            b.classList.add('bg-white', 'text-pupil-700', 'shadow-sm');
-            b.classList.remove('text-slate-500');
-        }
-
-        function setAnalyticsRange(days) {
-            analyticsViewMode = 'range';
-            analyticsRangeDays = days;
-            clearAnalyticsRangeButtons();
-            activateAnalyticsRangeButton('rangeBtn7');
-            renderAnalytics();
-        }
-
-        function setAnalyticsWeek(weekNum) {
-            analyticsViewMode = 'week';
-            selectedAnalyticsWeek = weekNum;
-            clearAnalyticsRangeButtons();
-            activateAnalyticsRangeButton('rangeBtnW' + weekNum);
-            renderAnalytics();
-        }
-
-        function getWeekDateRange(weekNum) {
-            // Splits the CURRENT calendar month into 4 chunks: 1-7, 8-14, 15-21, 22-end.
+        function getAnalyticsWeekDates(offset) {
+            // Weeks always run Saturday -> Friday, matching the Weekly Timetable.
             const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const startDay = (weekNum - 1) * 7 + 1;
-            const endDay = weekNum === 4 ? daysInMonth : Math.min(weekNum * 7, daysInMonth);
+            const dow = now.getDay(); // 0=Sun..6=Sat
+            const daysSinceSat = (dow + 1) % 7;
+            const thisWeekStart = new Date(now);
+            thisWeekStart.setDate(now.getDate() - daysSinceSat);
+            thisWeekStart.setHours(0, 0, 0, 0);
+            thisWeekStart.setDate(thisWeekStart.getDate() + offset * 7);
+
             const dates = [];
-            for (let d = startDay; d <= endDay; d++) {
-                dates.push(new Date(year, month, d));
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(thisWeekStart);
+                d.setDate(thisWeekStart.getDate() + i);
+                dates.push(d);
             }
             return dates;
+        }
+
+        function shiftAnalyticsWeek(delta) {
+            analyticsWeekOffset += delta;
+            renderAnalytics();
+        }
+
+        function jumpToCurrentAnalyticsWeek() {
+            analyticsWeekOffset = 0;
+            renderAnalytics();
         }
 
         function computeCurrentStreak() {
@@ -1552,61 +1537,55 @@
             if (!appState.history) appState.history = {};
             if (!appState.dailyTasksByDate) appState.dailyTasksByDate = {};
 
-            let days = [];
-            let rangeText, subtitleText;
-
-            if (analyticsViewMode === 'week') {
-                const weekDates = getWeekDateRange(selectedAnalyticsWeek);
-                days = weekDates.map(d => {
-                    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                    const label = d.toLocaleDateString('en-US', { weekday: 'short' });
-                    const historyEntry = appState.history[key] || { minutes: 0, sessions: 0 };
-                    const dayTasks = appState.dailyTasksByDate[key] || [];
-                    const tasksDone = dayTasks.filter(t => t.done).length;
-                    return { key, label, minutes: historyEntry.minutes || 0, sessions: historyEntry.sessions || 0, tasks: tasksDone };
-                });
-                const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
-                rangeText = `Week ${selectedAnalyticsWeek}`;
-                subtitleText = `${monthName} — Week ${selectedAnalyticsWeek} (${weekDates[0].getDate()}–${weekDates[weekDates.length - 1].getDate()}) — sida aad u shaqaysay maalin kasta.`;
-            } else {
-                const rangeDays = analyticsRangeDays;
-                for (let i = rangeDays - 1; i >= 0; i--) {
-                    const d = new Date();
-                    d.setDate(d.getDate() - i);
-                    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                    const label = d.toLocaleDateString('en-US', { weekday: 'short' });
-                    const historyEntry = appState.history[key] || { minutes: 0, sessions: 0 };
-                    const dayTasks = appState.dailyTasksByDate[key] || [];
-                    const tasksDone = dayTasks.filter(t => t.done).length;
-                    days.push({ key, label, minutes: historyEntry.minutes || 0, sessions: historyEntry.sessions || 0, tasks: tasksDone });
-                }
-                rangeText = '7 maalmood';
-                subtitleText = "7-dii maalmood ee lasoo dhaafay — sida aad u shaqaysay maalin kasta.";
-            }
+            const weekDates = getAnalyticsWeekDates(analyticsWeekOffset);
+            const days = weekDates.map(d => {
+                const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+                const historyEntry = appState.history[key] || { minutes: 0, sessions: 0 };
+                const dayTasks = appState.dailyTasksByDate[key] || [];
+                const tasksDone = dayTasks.filter(t => t.done).length;
+                return { key, label, minutes: historyEntry.minutes || 0, sessions: historyEntry.sessions || 0, tasks: tasksDone };
+            });
 
             const totalMinutes = days.reduce((s, d) => s + d.minutes, 0);
             const totalTasks = days.reduce((s, d) => s + d.tasks, 0);
-            const avgMinutes = days.length > 0 ? Math.round(totalMinutes / days.length) : 0;
+            const avgMinutes = Math.round(totalMinutes / 7);
             const streak = computeCurrentStreak();
 
+            // Header: week label + prev/next state
+            const startD = weekDates[0], endD = weekDates[6];
+            const sameMonth = startD.getMonth() === endD.getMonth();
+            const rangeLabel = sameMonth
+                ? `${startD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endD.toLocaleDateString('en-US', { day: 'numeric' })}`
+                : `${startD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${endD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+            const weekLabelEl = document.getElementById('analyticsWeekLabel');
+            if (weekLabelEl) {
+                if (analyticsWeekOffset === 0) weekLabelEl.innerText = `Toddobaadkan · ${rangeLabel}`;
+                else if (analyticsWeekOffset === -1) weekLabelEl.innerText = `Toddobaadkii hore · ${rangeLabel}`;
+                else if (analyticsWeekOffset === 1) weekLabelEl.innerText = `Toddobaadka xiga · ${rangeLabel}`;
+                else weekLabelEl.innerText = rangeLabel;
+            }
+            const jumpBtn = document.getElementById('analyticsWeekJumpBtn');
+            if (jumpBtn) jumpBtn.classList.toggle('hidden', analyticsWeekOffset === 0);
+
             const subtitleEl = document.getElementById('analyticsRangeSubtitle');
-            if (subtitleEl) subtitleEl.innerText = subtitleText;
-            const l1 = document.getElementById('analyticsRangeLabel1'); if (l1) l1.innerText = analyticsViewMode === 'week' ? `Week ${selectedAnalyticsWeek}` : 'Todobaadkan';
-            const l2 = document.getElementById('analyticsRangeLabel2'); if (l2) l2.innerText = `La dhammeeyay ${rangeText}`;
-            const l3 = document.getElementById('analyticsRangeLabel3'); if (l3) l3.innerText = `Maalin kasta (${days.length} maalmood)`;
+            if (subtitleEl) subtitleEl.innerText = "Sabti ilaa Jimco — sida aad u shaqaysay maalin kasta.";
+            const l1 = document.getElementById('analyticsRangeLabel1'); if (l1) l1.innerText = analyticsWeekOffset === 0 ? 'Todobaadkan' : 'Toddobaadkaas';
+            const l2 = document.getElementById('analyticsRangeLabel2'); if (l2) l2.innerText = 'La dhammeeyay toddobaadkan';
+            const l3 = document.getElementById('analyticsRangeLabel3'); if (l3) l3.innerText = 'Maalin kasta (7 maalmood)';
             const t1 = document.getElementById('analyticsMinutesChartTitle');
-            if (t1) t1.innerHTML = `<i class="fa-solid fa-clock text-pupil-600"></i> Wakhtiga Focus-ka (${rangeText})`;
+            if (t1) t1.innerHTML = `<i class="fa-solid fa-clock text-pupil-600"></i> Wakhtiga Focus-ka (Sabti-Jimco)`;
             const t2 = document.getElementById('analyticsTasksChartTitle');
-            if (t2) t2.innerHTML = `<i class="fa-solid fa-list-check text-pupil-600"></i> Shaqooyinka la Dhammeeyay (${rangeText})`;
+            if (t2) t2.innerHTML = `<i class="fa-solid fa-list-check text-pupil-600"></i> Shaqooyinka la Dhammeeyay (Sabti-Jimco)`;
 
             const elMin = document.getElementById('analyticsWeekMinutes');
             const elTasks = document.getElementById('analyticsWeekTasks');
             const elStreak = document.getElementById('analyticsStreak');
             const elAvg = document.getElementById('analyticsAvgMinutes');
-            if (elMin) elMin.innerText = `${totalMinutes} min`;
+            if (elMin) elMin.innerText = formatHoursMinutes(totalMinutes);
             if (elTasks) elTasks.innerText = `${totalTasks}`;
             if (elStreak) elStreak.innerText = `${streak} days`;
-            if (elAvg) elAvg.innerText = `${avgMinutes} min`;
+            if (elAvg) elAvg.innerText = formatHoursMinutes(avgMinutes);
 
             renderAnalyticsCharts(days);
             renderAnalyticsCourseProgress();
@@ -1630,11 +1609,12 @@
 
             const labels = days.map(d => d.label);
             const minutesData = days.map(d => d.minutes);
+            const hoursData = days.map(d => Math.round((d.minutes / 60) * 10) / 10);
             const tasksData = days.map(d => d.tasks);
             const maxMinutes = Math.max(...minutesData, 0);
             const maxTasks = Math.max(...tasksData, 0);
-            const trendWindow = Math.min(3, days.length);
-            const minutesTrend = computeMovingAverage(minutesData, trendWindow);
+            const maxHours = Math.max(...hoursData, 0);
+            const hoursTrend = computeMovingAverage(hoursData, 3);
 
             if (minutesChartInstance) minutesChartInstance.destroy();
             minutesChartInstance = new Chart(minutesCanvas, {
@@ -1672,12 +1652,13 @@
                 }
             });
 
+            // Trend chart: Focus-time ONLY, shown in hours (not tasks).
             if (trendCanvas) {
                 if (trendChartInstance) trendChartInstance.destroy();
                 trendChartInstance = new Chart(trendCanvas, {
                     type: 'line',
                     data: { labels, datasets: [{
-                        label: 'Trend', data: minutesTrend,
+                        label: 'Trend (hours)', data: hoursTrend,
                         borderColor: '#7C2D12', backgroundColor: 'rgba(124,45,18,0.08)',
                         borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#7C2D12',
                         fill: true, tension: 0.35
@@ -1686,7 +1667,7 @@
                         plugins: { legend: { display: false } },
                         scales: {
                             x: { grid: { display: false } },
-                            y: { beginAtZero: true, suggestedMax: Math.max(maxMinutes + 10, 30), grid: { color: '#F1F5F9' }, ticks: { precision: 0 } }
+                            y: { beginAtZero: true, suggestedMax: Math.max(maxHours + 1, 3), grid: { color: '#F1F5F9' }, ticks: { precision: 1, callback: (v) => v + 'h' } }
                         },
                         responsive: true, maintainAspectRatio: false
                     }
