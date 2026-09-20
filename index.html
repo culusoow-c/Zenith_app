@@ -380,10 +380,10 @@
                             </div>
                         </div>
                         <div>
-                            <h3 id="statHoursLearned" class="text-2xl font-black text-slate-900">120</h3>
+                            <h3 id="statHoursLearned" class="text-2xl font-black text-slate-900">0.0</h3>
                             <p class="text-xs font-semibold text-slate-500 mt-0.5">Hours Learned</p>
-                            <span class="text-[11px] font-bold text-pupil-600 flex items-center gap-1 mt-2">
-                                <i class="fa-solid fa-arrow-up text-[9px]"></i> +6% this month
+                            <span id="statHoursChangeBadge" class="text-[11px] font-bold text-slate-400 flex items-center gap-1 mt-2">
+                                No data yet
                             </span>
                         </div>
                     </div>
@@ -396,10 +396,10 @@
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-2xl font-black text-slate-900">70%</h3>
-                            <p class="text-xs font-semibold text-slate-500 mt-0.5">Avg. Target Score</p>
-                            <span class="text-[11px] font-bold text-pupil-600 flex items-center gap-1 mt-2">
-                                <i class="fa-solid fa-arrow-up text-[9px]"></i> High Consistency
+                            <h3 id="statConsistencyPct" class="text-2xl font-black text-slate-900">--</h3>
+                            <p class="text-xs font-semibold text-slate-500 mt-0.5">Weekly Consistency</p>
+                            <span id="statConsistencyBadge" class="text-[11px] font-bold text-slate-400 flex items-center gap-1 mt-2">
+                                No data yet
                             </span>
                         </div>
                     </div>
@@ -656,11 +656,11 @@
             <section id="tab-assignments" class="tab-content hidden space-y-6">
                 <div class="bg-white p-4 rounded-2xl border border-slate-200/80 pupil-card-shadow flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div class="flex flex-wrap items-center gap-2">
-                        <button onclick="filterAssignments('all')" class="assign-filter-btn px-4 py-2 rounded-xl text-xs font-bold bg-pupil-600 text-white transition-all">All Tasks</button>
-                        <button onclick="filterAssignments('Pending')" class="assign-filter-btn px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Pending</button>
-                        <button onclick="filterAssignments('Submitted')" class="assign-filter-btn px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Submitted</button>
+                        <button onclick="filterAssignments('all', event)" class="assign-filter-btn px-4 py-2 rounded-xl text-xs font-bold bg-pupil-600 text-white transition-all">All Tasks</button>
+                        <button onclick="filterAssignments('Pending', event)" class="assign-filter-btn px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Pending</button>
+                        <button onclick="filterAssignments('Submitted', event)" class="assign-filter-btn px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Submitted</button>
                     </div>
-                    <button onclick="openModal('addAssignmentModal')" class="px-4 py-2.5 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2">
+                    <button onclick="openAddAssignmentModal()" class="px-4 py-2.5 bg-pupil-600 hover:bg-pupil-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> New Assignment
                     </button>
                 </div>
@@ -1197,10 +1197,34 @@
             const date = new Date();
             date.setDate(date.getDate() + daysToAdd);
             date.setHours(23, 59, 0, 0);
-            return date.toISOString().slice(0, 16);
+            const pad = (n) => String(n).padStart(2, '0');
+            // Build the local-time string by hand (not toISOString, which converts
+            // to UTC and would shift the displayed date/time for non-UTC users).
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
         }
 
         let appState = { courses: [], assignments: [], dailyTasksByDate: {}, studyStats: {}, alarms: [], history: {}, weeklySchedule: null };
+
+        // BUG 11 FIX: escape any user-controlled string before it is inserted via
+        // innerHTML, so course/assignment/task/alarm/subject text can never be
+        // interpreted as HTML or run as script (stored/reflected XSS prevention).
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // BUG 11 FIX: escape a value that will be embedded inside a single-quoted
+        // inline onclick() JS-string argument, so it can't break out of the
+        // string literal and inject arbitrary script.
+        function escapeJsString(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        }
         let selectedScheduleDay = 'Sabti';
 
         // Pomodoro State
@@ -1415,6 +1439,18 @@
                     if (!appState.studyStats) appState.studyStats = { totalMinutes: 0, completedSessions: 0 };
                     if (!appState.courses) appState.courses = [];
                     if (!appState.assignments) appState.assignments = [];
+                    // ISSUE 2 migration: existing courses predate baseProgress /
+                    // deterministic calculation. Reverse-engineer each course's
+                    // base from (current progress - bonus already implied by its
+                    // Submitted assignments), so switching to calculateCourseProgress()
+                    // doesn't visibly jump anyone's existing progress value.
+                    appState.courses.forEach(c => {
+                        if (typeof c.baseProgress !== 'number') {
+                            const submittedCount = appState.assignments.filter(a => a.courseId === c.id && a.status === 'Submitted').length;
+                            c.baseProgress = Math.max(0, (c.progress || 0) - submittedCount * 15);
+                        }
+                    });
+                    appState.courses.forEach(c => syncCourseProgress(c.id));
                     if (!appState.weeklySchedule) appState.weeklySchedule = JSON.parse(JSON.stringify(weeklyTimetableData));
                     ensureWeeklyScheduleIds();
                 } catch (e) {
@@ -1454,10 +1490,10 @@
             return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
 
-        function logDailyActivity({ minutes = 0, sessions = 0, tasks = 0 }) {
+        function logDailyActivity({ minutes = 0, sessions = 0, tasks = 0 }, dateKeyOverride) {
             if (!currentUsername) return;
             if (!appState.history) appState.history = {};
-            const key = todayKey();
+            const key = dateKeyOverride || todayKey();
             if (!appState.history[key]) appState.history[key] = { minutes: 0, sessions: 0, tasks: 0 };
             appState.history[key].minutes += minutes;
             appState.history[key].sessions += sessions;
@@ -1727,7 +1763,7 @@
                 const row = document.createElement('div');
                 row.innerHTML = `
                     <div class="flex items-center justify-between mb-1">
-                        <span class="text-xs font-bold text-slate-700">${c.name}</span>
+                        <span class="text-xs font-bold text-slate-700">${escapeHtml(c.name)}</span>
                         <span class="text-xs font-bold text-pupil-600">${c.progress}%</span>
                     </div>
                     <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -1811,7 +1847,7 @@
                 const badge = document.createElement('span');
                 badge.className = 'px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200/60 flex items-center gap-1.5';
                 const icon = r.includes('Quran') ? 'fa-book-quran' : 'fa-dumbbell';
-                badge.innerHTML = `<i class="fa-solid ${icon} text-emerald-600"></i> ${r}`;
+                badge.innerHTML = `<i class="fa-solid ${icon} text-emerald-600"></i> ${escapeHtml(r)}`;
                 routinesContainer.appendChild(badge);
             });
 
@@ -1828,13 +1864,13 @@
                 tr.className = 'hover:bg-slate-50/80 transition-colors';
                 tr.innerHTML = `
                     <td class="p-3 font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid ${item.icon} ${item.color} text-sm"></i> ${item.subject}
+                        <i class="fa-solid ${item.icon} ${item.color} text-sm"></i> ${escapeHtml(item.subject)}
                     </td>
                     <td class="p-3 font-semibold text-slate-700">${item.count} Promodo</td>
                     <td class="p-3 text-slate-500 font-mono">${totalMins} mins</td>
                     <td class="p-3 text-right">
                         <div class="flex items-center justify-end gap-1.5">
-                            <button onclick="startSpecificPomodoro('${item.subject}')" class="px-2.5 py-1 bg-pupil-600 hover:bg-pupil-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex items-center gap-1">
+                            <button onclick="startSpecificPomodoro('${escapeJsString(item.subject)}')" class="px-2.5 py-1 bg-pupil-600 hover:bg-pupil-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs flex items-center gap-1">
                                 <i class="fa-solid fa-play text-[9px]"></i> Start
                             </button>
                             <button onclick="deleteWeeklySubject('${selectedScheduleDay}', '${item.id}')" class="w-7 h-7 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-all">
@@ -1846,7 +1882,9 @@
                 tbody.appendChild(tr);
             });
 
-            document.getElementById('statTodayPomodoros').innerText = totalPomodoros;
+            // ISSUE 7 FIX: "Today's Target Pomodoros" must always reflect the
+            // REAL current day, independent of whichever day the user is
+            // browsing/editing here - see updateTodayPomodoroTarget().
         }
 
         function startSpecificPomodoro(subject) {
@@ -1875,7 +1913,7 @@
                 let pomodorosList = info.pomodoros.map(p => `
                     <div class="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 last:border-0 group">
                         <span class="font-semibold text-slate-700 flex items-center gap-1.5 truncate pr-1">
-                            <i class="fa-solid ${p.icon} ${p.color} flex-shrink-0"></i> <span class="truncate">${p.subject}</span>
+                            <i class="fa-solid ${p.icon} ${p.color} flex-shrink-0"></i> <span class="truncate">${escapeHtml(p.subject)}</span>
                         </span>
                         <span class="flex items-center gap-1.5 flex-shrink-0">
                             <span class="bg-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px]">${p.count} Promodo</span>
@@ -1888,7 +1926,7 @@
 
                 let routinesList = info.routines.map((r, idx) => `
                     <span class="text-[10px] font-bold bg-white text-emerald-700 border border-emerald-200 pl-2 pr-1 py-0.5 rounded-md flex items-center gap-1">
-                        <i class="fa-solid fa-check text-[9px]"></i> ${r}
+                        <i class="fa-solid fa-check text-[9px]"></i> ${escapeHtml(r)}
                         <button onclick="removeWeeklyRoutine('${day}',${idx})" class="text-emerald-400 hover:text-rose-500 ml-0.5"><i class="fa-solid fa-xmark text-[9px]"></i></button>
                     </span>
                 `).join('');
@@ -2051,7 +2089,7 @@
                         <div class="flex items-center gap-3 overflow-hidden pr-2">
                             <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleDailyTask(${idx})" class="w-4 h-4 rounded text-pupil-600 focus:ring-pupil-500 cursor-pointer">
                             <span class="text-xs font-semibold ${task.done ? 'line-through text-slate-400' : 'text-slate-800'} truncate">
-                                ${task.title}
+                                ${escapeHtml(task.title)}
                             </span>
                         </div>
                         <button onclick="deleteDailyTask(${idx})" class="text-slate-300 hover:text-rose-600 p-1 flex-shrink-0"><i class="fa-solid fa-xmark text-xs"></i></button>
@@ -2116,9 +2154,11 @@
             const tasks = getTasksForDate(selectedGoalsDate);
             if (tasks[index]) {
                 tasks[index].done = !tasks[index].done;
+                // ISSUE 1 FIX: apply exactly one +1/-1 delta per click, attributed
+                // to the date actually being edited (not always "today").
+                logDailyActivity({ tasks: tasks[index].done ? 1 : -1 }, selectedGoalsDate);
                 saveState();
                 renderDailyStudyPlan();
-                renderAnalytics();
                 if (tasks[index].done) {
                     showToast("Task completed! Keep up the momentum 🎉", "success");
                 }
@@ -2127,10 +2167,17 @@
 
         function deleteDailyTask(index) {
             const tasks = getTasksForDate(selectedGoalsDate);
+            const wasDone = !!(tasks[index] && tasks[index].done);
             tasks.splice(index, 1);
+            // ISSUE 1 FIX: if the deleted task was already counted as done,
+            // remove its contribution so the count doesn't stay inflated.
+            if (wasDone) {
+                logDailyActivity({ tasks: -1 }, selectedGoalsDate);
+            } else {
+                renderAnalytics();
+            }
             saveState();
             renderDailyStudyPlan();
-            renderAnalytics();
         }
 
         let studyStatsViewMode = 'today';
@@ -2202,6 +2249,18 @@
             minsEl.innerText = formatHoursMinutes(stats.minutes);
         }
 
+        // ISSUE 7 FIX: computes the Pomodoro target strictly from the REAL
+        // current day's schedule, independent of selectedScheduleDay (which
+        // changes when the user clicks another day tab to view/edit it).
+        function updateTodayPomodoroTarget() {
+            const dayNames = ['Axad', 'Isniin', 'Talaado', 'Arbaco', 'Khamiis', 'Jimco', 'Sabti'];
+            const realTodayName = dayNames[new Date().getDay()] || 'Sabti';
+            const data = appState.weeklySchedule && appState.weeklySchedule[realTodayName];
+            const total = data ? data.pomodoros.reduce((acc, p) => acc + p.count, 0) : 0;
+            const el = document.getElementById('statTodayPomodoros');
+            if (el) el.innerText = total;
+        }
+
         function updateStatsHeader() {
             const pending = appState.assignments.filter(a => a.status === 'Pending');
             const completedCourses = appState.courses.filter(c => c.progress >= 90);
@@ -2210,9 +2269,59 @@
             document.getElementById('statCoursesCount').innerText = appState.courses.length;
 
             const hours = (appState.studyStats.totalMinutes / 60).toFixed(1);
-            document.getElementById('statHoursLearned').innerText = Math.round(hours * 18);
+            document.getElementById('statHoursLearned').innerText = hours;
             document.getElementById('bannerHoursLearned').innerText = `${hours} hrs learned`;
+
+            // BUG 8 FIX: real month-over-month change instead of a hardcoded "+6%"
+            const now = new Date();
+            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+            const thisMonthStats = getHistoryRangeStats(thisMonthStart, now);
+            const lastMonthStats = getHistoryRangeStats(lastMonthStart, lastMonthEnd);
+            const changeBadge = document.getElementById('statHoursChangeBadge');
+            if (changeBadge) {
+                if (lastMonthStats.minutes === 0 && thisMonthStats.minutes === 0) {
+                    changeBadge.innerHTML = 'No data yet';
+                    changeBadge.className = 'text-[11px] font-bold text-slate-400 flex items-center gap-1 mt-2';
+                } else if (lastMonthStats.minutes === 0) {
+                    changeBadge.innerHTML = '<i class="fa-solid fa-star text-[9px]"></i> First month tracked';
+                    changeBadge.className = 'text-[11px] font-bold text-pupil-600 flex items-center gap-1 mt-2';
+                } else {
+                    const pctChange = Math.round(((thisMonthStats.minutes - lastMonthStats.minutes) / lastMonthStats.minutes) * 100);
+                    const isUp = pctChange >= 0;
+                    changeBadge.innerHTML = `<i class="fa-solid fa-arrow-${isUp ? 'up' : 'down'} text-[9px]"></i> ${isUp ? '+' : ''}${pctChange}% this month`;
+                    changeBadge.className = `text-[11px] font-bold ${isUp ? 'text-pupil-600' : 'text-rose-500'} flex items-center gap-1 mt-2`;
+                }
+            }
+
+            // BUG 8 FIX: real weekly consistency (days active out of 7) instead of a hardcoded "70%"
+            const weekDates = getAnalyticsWeekDates(0);
+            let activeDays = 0;
+            weekDates.forEach(d => {
+                const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                const entry = appState.history && appState.history[key];
+                const dayTasks = (appState.dailyTasksByDate && appState.dailyTasksByDate[key]) || [];
+                if ((entry && entry.minutes > 0) || dayTasks.some(t => t.done)) activeDays++;
+            });
+            const consistencyPctEl = document.getElementById('statConsistencyPct');
+            const consistencyBadgeEl = document.getElementById('statConsistencyBadge');
+            if (consistencyPctEl && consistencyBadgeEl) {
+                if (activeDays === 0) {
+                    consistencyPctEl.innerText = '--';
+                    consistencyBadgeEl.innerHTML = 'No data yet';
+                    consistencyBadgeEl.className = 'text-[11px] font-bold text-slate-400 flex items-center gap-1 mt-2';
+                } else {
+                    const pct = Math.round((activeDays / 7) * 100);
+                    consistencyPctEl.innerText = `${pct}%`;
+                    const label = pct >= 70 ? 'High Consistency' : (pct >= 40 ? 'Building a habit' : 'Just getting started');
+                    consistencyBadgeEl.innerHTML = `<i class="fa-solid fa-arrow-up text-[9px]"></i> ${activeDays}/7 days · ${label}`;
+                    consistencyBadgeEl.className = 'text-[11px] font-bold text-pupil-600 flex items-center gap-1 mt-2';
+                }
+            }
+
             updateStudyStatsWidget();
+            updateTodayPomodoroTarget();
         }
 
         function renderDashboardContinueLearning() {
@@ -2225,9 +2334,9 @@
                 card.innerHTML = `
                     <div>
                         <div class="relative h-28 bg-slate-900 overflow-hidden">
-                            <img src="${course.image}" alt="${course.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                            <img src="${course.image}" alt="${escapeHtml(course.name)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                             <span class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-white/90 backdrop-blur-sm text-[10px] font-bold text-slate-800 uppercase tracking-wider">
-                                ${course.category || 'Data'}
+                                ${escapeHtml(course.category || 'Data')}
                             </span>
                             <div class="absolute bottom-2 left-3 right-3 text-white text-[11px] font-semibold flex items-center justify-between">
                                 <span>${course.progress}% complete</span>
@@ -2237,9 +2346,9 @@
                             </div>
                         </div>
                         <div class="p-3">
-                            <h4 class="font-bold text-xs text-slate-900 line-clamp-1">${course.name}</h4>
+                            <h4 class="font-bold text-xs text-slate-900 line-clamp-1">${escapeHtml(course.name)}</h4>
                             <p class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-                                <i class="fa-regular fa-user"></i> ${course.instructor}
+                                <i class="fa-regular fa-user"></i> ${escapeHtml(course.instructor)}
                             </p>
                         </div>
                     </div>
@@ -2298,8 +2407,8 @@
                         <i class="fa-solid ${s.icon}"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-bold text-slate-900 truncate">${assign.title}</p>
-                        <p class="text-[11px] text-slate-500 truncate">${course ? course.name : 'General'} ·
+                        <p class="text-sm font-bold text-slate-900 truncate">${escapeHtml(assign.title)}</p>
+                        <p class="text-[11px] text-slate-500 truncate">${course ? escapeHtml(course.name) : 'General'} ·
                             <span class="countdown-badge font-semibold text-pupil-700" data-deadline="${assign.deadline}">Due Soon!</span>
                         </p>
                     </div>
@@ -2331,8 +2440,8 @@
                 item.className = 'flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100';
                 item.innerHTML = `
                     <div class="overflow-hidden pr-2">
-                        <p class="text-xs font-bold text-slate-800 truncate">${assign.title}</p>
-                        <p class="text-[10px] text-slate-400 truncate">${course ? course.name : 'General'}</p>
+                        <p class="text-xs font-bold text-slate-800 truncate">${escapeHtml(assign.title)}</p>
+                        <p class="text-[10px] text-slate-400 truncate">${course ? escapeHtml(course.name) : 'General'}</p>
                     </div>
                     <span class="countdown-badge text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 flex-shrink-0" data-deadline="${assign.deadline}">
                         Due Soon!
@@ -2355,12 +2464,12 @@
                         <div class="h-32 bg-slate-100 relative">
                             <img src="${course.image}" class="w-full h-full object-cover">
                             <span class="absolute top-3 left-3 px-2 py-0.5 rounded bg-slate-900/80 text-white text-[10px] font-bold uppercase">
-                                ${course.category}
+                                ${escapeHtml(course.category)}
                             </span>
                         </div>
                         <div class="p-5">
-                            <h4 class="text-base font-bold text-slate-900">${course.name}</h4>
-                            <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${course.instructor}</p>
+                            <h4 class="text-base font-bold text-slate-900">${escapeHtml(course.name)}</h4>
+                            <p class="text-xs text-slate-500 mt-1"><i class="fa-regular fa-user mr-1"></i> ${escapeHtml(course.instructor)}</p>
                             
                             <div class="mt-4 space-y-1.5">
                                 <div class="flex justify-between text-xs font-semibold">
@@ -2404,10 +2513,10 @@
                 tr.className = 'hover:bg-slate-50/80 transition-colors';
                 tr.innerHTML = `
                     <td class="p-4 font-bold text-slate-800 text-xs">
-                        ${assign.title}
-                        ${assign.notes ? `<p class="text-[10px] text-slate-400 font-normal mt-0.5"><i class="fa-solid fa-link text-pupil-500"></i> ${assign.notes}</p>` : ''}
+                        ${escapeHtml(assign.title)}
+                        ${assign.notes ? `<p class="text-[10px] text-slate-400 font-normal mt-0.5"><i class="fa-solid fa-link text-pupil-500"></i> ${escapeHtml(assign.notes)}</p>` : ''}
                     </td>
-                    <td class="p-4 text-xs text-slate-500">${courseName}</td>
+                    <td class="p-4 text-xs text-slate-500">${escapeHtml(courseName)}</td>
                     <td class="p-4 text-xs font-medium text-slate-600">${formatDateDisplay(assign.deadline)}</td>
                     <td class="p-4">
                         <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200/50">
@@ -2432,13 +2541,15 @@
             });
         }
 
-        function filterAssignments(status) {
+        function filterAssignments(status, evt) {
             document.querySelectorAll('.assign-filter-btn').forEach(btn => {
                 btn.classList.remove('bg-pupil-600', 'text-white');
                 btn.classList.add('bg-slate-100', 'text-slate-600');
             });
-            event.target.classList.add('bg-pupil-600', 'text-white');
-            event.target.classList.remove('bg-slate-100', 'text-slate-600');
+            if (evt && evt.target) {
+                evt.target.classList.add('bg-pupil-600', 'text-white');
+                evt.target.classList.remove('bg-slate-100', 'text-slate-600');
+            }
             renderAssignments(status);
         }
 
@@ -2465,8 +2576,8 @@
                             <i class="fa-regular fa-clock"></i>
                         </div>
                         <div>
-                            <h4 class="text-sm font-bold text-slate-900">${assign.title}</h4>
-                            <p class="text-xs text-slate-400 mt-0.5">${course ? course.name : 'General'} • Target: ${formatDateDisplay(assign.deadline)}</p>
+                            <h4 class="text-sm font-bold text-slate-900">${escapeHtml(assign.title)}</h4>
+                            <p class="text-xs text-slate-400 mt-0.5">${course ? escapeHtml(course.name) : 'General'} • Target: ${formatDateDisplay(assign.deadline)}</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
@@ -2610,7 +2721,7 @@
                 const display = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}min`;
                 return `
                     <span class="inline-flex items-center gap-1.5 bg-pupil-50 border border-pupil-200/60 text-pupil-800 text-xs font-bold px-3 py-1.5 rounded-full">
-                        <i class="fa-solid fa-circle-check text-pupil-500 text-[10px]"></i> ${subj}: ${display} done
+                        <i class="fa-solid fa-circle-check text-pupil-500 text-[10px]"></i> ${escapeHtml(subj)}: ${display} done
                     </span>
                 `;
             }).join('');
@@ -2731,6 +2842,13 @@
             const deadline = document.getElementById('assignDeadline').value;
             const priority = document.getElementById('assignPriority').value;
 
+            // BUG 5 FIX: never save an assignment with an invalid/nonexistent courseId
+            const courseExists = appState.courses.some(c => c.id === courseId);
+            if (!courseId || !courseExists) {
+                showToast("Fadlan marka hore samee koorso ka hor inta aadan shaqo darin.", "info");
+                return;
+            }
+
             appState.assignments.push({
                 id: 'a_' + Date.now(),
                 title,
@@ -2748,6 +2866,35 @@
             showToast("New assignment added!", "success");
         }
 
+        function openAddAssignmentModal() {
+            // BUG 5 FIX: guide the user instead of letting them create a course-less assignment
+            if (appState.courses.length === 0) {
+                showToast("Marka hore samee koorso, ka dibna soo dar shaqo.", "info");
+                return;
+            }
+            openModal('addAssignmentModal');
+        }
+
+        // ISSUE 2 FIX: course progress is now always DERIVED, never incrementally
+        // patched. baseProgress is the self-reported starting point set when the
+        // course was created; +15 per currently-Submitted assignment on top of
+        // that, capped at 100. Calling this after any assignment change (submit,
+        // unsubmit, resubmit, delete) always yields the correct value - there is
+        // no counter to drift or double-count.
+        function calculateCourseProgress(courseId) {
+            const course = appState.courses.find(c => c.id === courseId);
+            if (!course) return 0;
+            const base = typeof course.baseProgress === 'number' ? course.baseProgress : 0;
+            const submittedCount = appState.assignments.filter(a => a.courseId === courseId && a.status === 'Submitted').length;
+            return Math.max(0, Math.min(100, base + submittedCount * 15));
+        }
+
+        function syncCourseProgress(courseId) {
+            const course = appState.courses.find(c => c.id === courseId);
+            if (!course) return;
+            course.progress = calculateCourseProgress(courseId);
+        }
+
         function saveCourse(e) {
             e.preventDefault();
             const name = document.getElementById('courseName').value;
@@ -2761,14 +2908,17 @@
                 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&auto=format&fit=crop&q=80'
             ];
 
+            const newCourseId = 'c_' + Date.now();
             appState.courses.push({
-                id: 'c_' + Date.now(),
+                id: newCourseId,
                 name,
                 instructor,
                 category,
                 progress,
+                baseProgress: progress, // the user's self-reported starting point; assignment bonuses stack on top
                 image: imgs[Math.floor(Math.random() * imgs.length)]
             });
+            syncCourseProgress(newCourseId);
 
             saveState();
             renderAll();
@@ -2796,11 +2946,10 @@
                 assign.status = 'Submitted';
                 assign.notes = notes;
 
-                // Dynamically update course progress when assignment is submitted
-                const course = appState.courses.find(c => c.id === assign.courseId);
-                if (course) {
-                    course.progress = Math.min(100, course.progress + 15);
-                }
+                // ISSUE 2 FIX: recompute from scratch - submitting an
+                // already-submitted assignment is a no-op for progress,
+                // since the derived count doesn't change.
+                syncCourseProgress(assign.courseId);
 
                 saveState();
                 renderAll();
@@ -2812,28 +2961,53 @@
 
         function toggleAssignmentStatus(assignId) {
             const assign = appState.assignments.find(a => a.id === assignId);
-            if (assign) {
-                assign.status = assign.status === 'Submitted' ? 'Pending' : 'Submitted';
-                saveState();
-                renderAll();
-                showToast("Assignment status updated.", "info");
-            }
+            if (!assign) return;
+
+            // ISSUE 2 FIX: flip status, then recompute progress from the
+            // actual current assignment states - fully reversible, no drift
+            // no matter how many times this is toggled back and forth.
+            assign.status = assign.status === 'Submitted' ? 'Pending' : 'Submitted';
+            syncCourseProgress(assign.courseId);
+
+            saveState();
+            renderAll();
+            showToast("Assignment status updated.", "info");
         }
 
         function deleteAssignment(id) {
+            // ISSUE 3 FIX: recalculate the related course's progress after the
+            // assignment is gone, so deleting a Submitted assignment correctly
+            // removes its bonus (it's no longer in the "Submitted" count).
+            const assign = appState.assignments.find(a => a.id === id);
+            const courseId = assign ? assign.courseId : null;
+
             appState.assignments = appState.assignments.filter(a => a.id !== id);
+            if (courseId) syncCourseProgress(courseId);
+
             saveState();
             renderAll();
             showToast("Assignment removed.", "info");
         }
 
         function deleteCourse(id) {
-            if (confirm("Are you sure you want to delete this course?")) {
+            // BUG 10 FIX: warn clearly about how many assignments will be affected
+            // instead of silently cascading the delete.
+            const course = appState.courses.find(c => c.id === id);
+            const relatedAssignments = appState.assignments.filter(a => a.courseId === id);
+            const courseName = course ? course.name : 'this course';
+
+            const message = relatedAssignments.length > 0
+                ? `"${courseName}" has ${relatedAssignments.length} assignment${relatedAssignments.length === 1 ? '' : 's'} attached. Deleting it will also permanently delete ${relatedAssignments.length === 1 ? 'that assignment' : 'those assignments'}. Continue?`
+                : `Are you sure you want to delete "${courseName}"?`;
+
+            if (confirm(message)) {
                 appState.courses = appState.courses.filter(c => c.id !== id);
                 appState.assignments = appState.assignments.filter(a => a.courseId !== id);
                 saveState();
                 renderAll();
-                showToast("Course deleted.", "info");
+                showToast(relatedAssignments.length > 0
+                    ? `Course and ${relatedAssignments.length} assignment${relatedAssignments.length === 1 ? '' : 's'} deleted.`
+                    : "Course deleted.", "info");
             }
         }
 
@@ -2849,7 +3023,7 @@
             const bg = type === 'success' ? 'bg-pupil-600' : 'bg-slate-800';
             
             toast.className = `${bg} text-white px-4 py-3 rounded-xl shadow-xl text-xs font-bold flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0`;
-            toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${msg}`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${escapeHtml(msg)}`;
 
             container.appendChild(toast);
 
@@ -2866,7 +3040,6 @@
         let alarmAudioCtx = null;
         let alarmBeepInterval = null;
         let isAlarmRinging = false;
-        let lastAlarmCheckMinute = null;
         let newAlarmSelectedDays = [];
         let previewInterval = null;
         let previewTimeout = null;
@@ -2950,6 +3123,16 @@
             updateLiveClock();
             setInterval(updateLiveClock, 1000);
             renderAlarmCards();
+
+            // BUG 3 FIX: browsers throttle setInterval in backgrounded tabs, so a
+            // scheduled alarm minute can be skipped entirely while the tab is
+            // hidden. Force an immediate re-check the moment the tab regains
+            // focus, instead of waiting for the next (possibly late) tick.
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    updateLiveClock();
+                }
+            });
         }
 
         function updateLiveClock() {
@@ -2965,25 +3148,47 @@
             // Refresh "in X hours, Y minutes" countdown text every tick
             refreshAlarmCountdowns();
 
-            // Check alarms only once per new minute (HH:MM changed)
-            const currentHHMM = timeStr.slice(0, 5);
-            if (currentHHMM !== lastAlarmCheckMinute) {
-                lastAlarmCheckMinute = currentHHMM;
-                checkAlarms(currentHHMM);
-            }
+            // BUG 3 FIX: check every tick (cheap) rather than only on an exact
+            // minute-string change - that older approach silently skipped the
+            // alarm entirely if a tick was ever throttled/delayed past it.
+            checkAlarms(now);
         }
 
-        function checkAlarms(currentHHMM) {
+        // BUG 3 FIX: timestamp/minutes-based comparison with a short grace
+        // window, so a delayed or throttled check still catches a recently-due
+        // alarm - and a persistent per-occurrence fire key so it can never fire
+        // twice for the same scheduled time (survives re-checks and reloads).
+        const ALARM_GRACE_MINUTES = 5;
+
+        function checkAlarms(now) {
             if (!appState.alarms || appState.alarms.length === 0) return;
-            const todayCode = JS_DAY_TO_CODE[new Date().getDay()];
+            now = now || new Date();
+            const todayCode = JS_DAY_TO_CODE[now.getDay()];
+            const todayDateKey = todayKey();
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            let changed = false;
+
             appState.alarms.forEach(alarm => {
-                if (!alarm.enabled || alarm.time !== currentHHMM) return;
+                if (!alarm.enabled) return;
                 const isOneTime = !alarm.days || alarm.days.length === 0;
                 const matchesToday = isOneTime || alarm.days.includes(todayCode);
-                if (matchesToday) {
+                if (!matchesToday) return;
+
+                const [h, m] = alarm.time.split(':').map(Number);
+                const alarmMinutes = h * 60 + m;
+                const fireKey = todayDateKey + '_' + alarm.time;
+
+                if (alarm.lastFiredKey === fireKey) return; // already fired for this exact occurrence
+
+                const lateBy = nowMinutes - alarmMinutes;
+                if (lateBy >= 0 && lateBy <= ALARM_GRACE_MINUTES) {
+                    alarm.lastFiredKey = fireKey;
+                    changed = true;
                     triggerAlarmRing(alarm, isOneTime);
                 }
             });
+
+            if (changed) saveState();
         }
 
         // ---- Add Alarm Modal ----
@@ -3095,11 +3300,16 @@
             const now = new Date();
             const [h, m] = alarm.time.split(':').map(Number);
             const isOneTime = !alarm.days || alarm.days.length === 0;
+            const graceMs = ALARM_GRACE_MINUTES * 60000;
 
             if (isOneTime) {
                 const next = new Date(now);
                 next.setHours(h, m, 0, 0);
-                if (next <= now) next.setDate(next.getDate() + 1);
+                // ISSUE 8 FIX: if we're still inside the firing grace window
+                // (about to ring, or checkAlarms just hasn't ticked yet), treat
+                // it as imminent rather than jumping straight to tomorrow.
+                const withinGrace = next <= now && (now - next) <= graceMs;
+                if (next <= now && !withinGrace) next.setDate(next.getDate() + 1);
                 return next;
             }
 
@@ -3108,7 +3318,8 @@
                 candidate.setDate(now.getDate() + i);
                 candidate.setHours(h, m, 0, 0);
                 const code = JS_DAY_TO_CODE[candidate.getDay()];
-                if (alarm.days.includes(code) && candidate > now) {
+                const withinGrace = candidate <= now && (now - candidate) <= graceMs;
+                if (alarm.days.includes(code) && (candidate > now || withinGrace)) {
                     return candidate;
                 }
             }
@@ -3167,7 +3378,7 @@
                     <i class="fa-solid fa-bell"></i>
                 </div>
                 <div class="min-w-0">
-                    <p class="text-xs font-bold text-slate-800">${t12.display} ${t12.period} · ${soonest.label}</p>
+                    <p class="text-xs font-bold text-slate-800">${t12.display} ${t12.period} · ${escapeHtml(soonest.label)}</p>
                     <p class="text-[11px] text-slate-400">${formatCountdown(soonestDate)}</p>
                 </div>`;
         }
@@ -3213,7 +3424,7 @@
                                     <i class="fa-solid fa-bell text-[10px]"></i> ${alarm.enabled ? formatCountdown(getNextTriggerDate(alarm)) : 'Off'}
                                 </p>
                                 <div class="flex items-center justify-between gap-2 mb-3">
-                                    <p class="text-base font-bold truncate ${alarm.enabled ? 'text-white/70' : 'text-white/35'}">${alarm.label}</p>
+                                    <p class="text-base font-bold truncate ${alarm.enabled ? 'text-white/70' : 'text-white/35'}">${escapeHtml(alarm.label)}</p>
                                     <div class="flex items-center gap-2.5 flex-shrink-0">
                                         <button onclick="cycleAlarmSound('${alarm.id}')" title="${SOUND_LABELS[alarm.sound || 'classic']} — taabo si aad u bedesho" class="text-white/20 hover:text-pupil-400 px-1">
                                             <i class="fa-solid fa-music text-xs"></i>
