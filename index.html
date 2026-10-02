@@ -263,9 +263,12 @@
     <!-- APP SHELL: hidden until logged in -->
     <div id="appShell" class="hidden h-full flex-col md:flex-row overflow-hidden">
 
-    <!-- Sidebar Navigation -->
-    <aside class="w-full md:w-64 bg-white border-r border-slate-200/80 flex-shrink-0 flex flex-col justify-between z-20">
-        <div>
+    <!-- Mobile nav backdrop (only < md) -->
+    <div id="sideNavBackdrop" class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm hidden md:hidden" onclick="closeMobileNav()" aria-hidden="true"></div>
+
+    <!-- Sidebar Navigation: static sidebar on md+, right off-canvas drawer on mobile -->
+    <aside id="sideNav" aria-label="Main menu" class="fixed inset-y-0 right-0 z-50 w-[85vw] max-w-xs translate-x-full transition-transform duration-300 ease-out bg-white border-l border-slate-200/80 shadow-2xl flex flex-col flex-shrink-0 md:static md:z-20 md:w-64 md:max-w-none md:translate-x-0 md:transition-none md:shadow-none md:border-l-0 md:border-r">
+        <div class="flex-1 min-h-0 overflow-y-auto">
             <!-- Zenith Brand Logo -->
             <div class="p-5 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -279,15 +282,15 @@
                     </div>
                     <span class="font-extrabold text-xl text-slate-900 tracking-tight">Zenith</span>
                 </div>
-                <button id="mobileMenuBtn" class="md:hidden text-slate-500 hover:text-slate-800">
-                    <i class="fa-solid fa-bars text-xl"></i>
+                <button id="mobileMenuCloseBtn" type="button" onclick="closeMobileNav()" aria-label="Xir menu-ga" class="md:hidden w-9 h-9 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
             <!-- Menu Navigation Links -->
             <div class="p-4">
                 <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-3">Main Menu</p>
-                <nav id="navMenu" class="hidden md:block space-y-1">
+                <nav id="navMenu" class="space-y-1">
                     <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all bg-pupil-100 text-pupil-800">
                         <i class="fa-solid fa-grip-vertical text-pupil-600 w-5"></i>
                         <span>Dashboard</span>
@@ -327,8 +330,11 @@
             </div>
         </div>
 
-        <!-- Sidebar Footer Reset Action -->
-        <div class="p-4 border-t border-slate-100 bg-slate-50/50 space-y-2">
+        <!-- Sidebar Footer (pinned to the bottom of the sidebar / drawer) -->
+        <div class="mt-auto p-4 border-t border-slate-100 bg-slate-50/50 space-y-2" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
+            <button type="button" onclick="closeMobileNav(); openProfilePanel();" class="md:hidden w-full py-2 px-3 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors flex items-center justify-center gap-2 font-semibold">
+                <i class="fa-solid fa-user-gear"></i> Profile &amp; Settings
+            </button>
             <button onclick="resetDataModal()" class="w-full py-2 px-3 text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors flex items-center justify-center gap-2 font-medium">
                 <i class="fa-solid fa-arrow-rotate-right"></i> Reset My Data
             </button>
@@ -342,7 +348,20 @@
     <div class="flex-1 flex flex-col h-full overflow-hidden">
         
         <!-- Top Navigation Header -->
-        <header class="bg-white border-b border-slate-200/80 px-6 py-3.5 flex items-center justify-between gap-4 z-10">
+        <header class="bg-white border-b border-slate-200/80 px-4 md:px-6 py-3 md:py-3.5 flex items-center justify-between gap-4 z-10">
+            <!-- Mobile brand (sidebar is off-canvas below md) -->
+            <div class="flex items-center gap-2.5 md:hidden">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-pupil-500 to-pupil-800 flex items-center justify-center shadow-sm p-1.5">
+                    <svg viewBox="0 0 100 100" class="w-full h-full" fill="none" aria-hidden="true">
+                        <path d="M62 70 L82 70 L66 42 L58 55 Z" fill="#FDBA74"/>
+                        <path d="M18 70 L50 20 L82 70 Z" fill="#FFF7ED"/>
+                        <path d="M50 20 L64 43 L57 43 L50 33 L43 43 L36 43 Z" fill="#C2410C"/>
+                        <path d="M50 8 L53 15 L60 18 L53 21 L50 28 L47 21 L40 18 L47 15 Z" fill="#FFEDD5"/>
+                    </svg>
+                </div>
+                <span class="font-extrabold text-lg text-slate-900 tracking-tight">Zenith</span>
+            </div>
+
             <!-- Search Bar -->
             <div class="relative flex-1 max-w-md hidden sm:block">
                 <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
@@ -350,7 +369,7 @@
             </div>
 
             <!-- User Actions & Profile -->
-            <div class="flex items-center gap-4 ml-auto">
+            <div class="flex items-center gap-2 md:gap-4 ml-auto">
                 <!-- Notification Center (real, data-driven) -->
                 <div class="relative" id="notifWrap">
                     <button id="notifBellBtn" type="button" onclick="toggleNotifPanel(event)" aria-label="Ogeysiisyada" aria-haspopup="true" aria-expanded="false" class="relative text-slate-500 hover:text-slate-800 p-2 rounded-xl hover:bg-slate-100 transition-colors">
@@ -358,7 +377,7 @@
                         <span id="notifBadge" class="hidden absolute top-0.5 right-0 min-w-[17px] h-[17px] px-1 rounded-full bg-pupil-600 text-white text-[9px] font-bold leading-[17px] text-center">0</span>
                     </button>
                 </div>
-                <div class="h-6 w-[1px] bg-slate-200"></div>
+                <div class="h-6 w-[1px] bg-slate-200 hidden md:block"></div>
                 
                 <!-- Profile Card (dynamic per logged-in user) — opens Profile drawer -->
                 <div id="profileAvatarBtn" role="button" tabindex="0" onclick="openProfilePanel()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProfilePanel();}" aria-label="Fur profile-ka" class="flex items-center gap-3 cursor-pointer rounded-xl pl-1 pr-2 py-1 hover:bg-slate-100 transition-colors">
@@ -369,6 +388,9 @@
                     </div>
                     <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 hidden md:block"></i>
                 </div>
+                <button id="mobileMenuBtn" type="button" onclick="openMobileNav()" aria-label="Fur menu-ga" aria-controls="sideNav" aria-expanded="false" class="md:hidden w-10 h-10 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
             </div>
         </header>
 
@@ -1246,7 +1268,7 @@
                 </button>
             </div>
 
-            <div id="profilePanelBody" class="flex-1 overflow-y-auto p-5 space-y-6">
+            <div id="profilePanelBody" class="flex-1 min-h-0 overflow-y-auto p-5 space-y-6">
                 <!-- Identity -->
                 <div class="flex items-center gap-4">
                     <div id="pfAvatar" class="w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br from-pupil-500 to-pupil-800 text-white font-extrabold text-2xl shadow-md">U</div>
@@ -1336,10 +1358,17 @@
                         </button>
                     </div>
 
-                    <button type="button" onclick="closeProfilePanel(); handleLogout();" class="w-full py-2.5 px-3 text-xs text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-xl transition-colors flex items-center justify-center gap-2 font-bold">
-                        <i class="fa-solid fa-right-from-bracket"></i> Ka bax (Logout)
-                    </button>
                 </div>
+            </div>
+
+            <!-- Pinned footer: account actions -->
+            <div class="mt-auto border-t border-slate-100 bg-slate-50/60 px-5 pt-4 grid grid-cols-2 gap-2" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
+                <button type="button" onclick="closeProfilePanel(); resetDataModal();" class="py-2.5 px-3 text-xs text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-xl transition-colors flex items-center justify-center gap-2 font-bold">
+                    <i class="fa-solid fa-arrow-rotate-right"></i> Reset Data
+                </button>
+                <button type="button" onclick="closeProfilePanel(); handleLogout();" class="py-2.5 px-3 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors flex items-center justify-center gap-2 font-bold">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </button>
             </div>
         </aside>
     </div>
@@ -4494,15 +4523,55 @@
                 activeBtn.classList.remove('text-slate-600');
             }
 
-            const navMenu = document.getElementById('navMenu');
-            if (!navMenu.classList.contains('hidden') && window.innerWidth < 768) {
-                navMenu.classList.add('hidden');
-            }
+            if (isMobileNavViewport()) closeMobileNav();
         }
 
+        // Mobile (< md): the sidebar is a right off-canvas drawer with a blurred
+        // backdrop. md+: a normal static sidebar (these helpers do nothing there).
+        const MOBILE_NAV_BREAKPOINT = 768;
+        function isMobileNavViewport() { return window.innerWidth < MOBILE_NAV_BREAKPOINT; }
+        function isMobileNavOpen() {
+            const nav = document.getElementById('sideNav');
+            return !!nav && !nav.classList.contains('translate-x-full');
+        }
+        function syncMobileNavA11y() {
+            const nav = document.getElementById('sideNav');
+            if (!nav) return;
+            const hiddenOffCanvas = isMobileNavViewport() && !isMobileNavOpen();
+            if (hiddenOffCanvas) nav.setAttribute('inert', ''); else nav.removeAttribute('inert');
+            const btn = document.getElementById('mobileMenuBtn');
+            if (btn) btn.setAttribute('aria-expanded', isMobileNavOpen() && isMobileNavViewport() ? 'true' : 'false');
+        }
+        function openMobileNav() {
+            if (!isMobileNavViewport()) return;
+            if (typeof closeNotifPanel === 'function') closeNotifPanel();
+            document.getElementById('sideNav').classList.remove('translate-x-full');
+            document.getElementById('sideNavBackdrop').classList.remove('hidden');
+            syncMobileNavA11y();
+            const closeBtn = document.getElementById('mobileMenuCloseBtn');
+            if (closeBtn) closeBtn.focus({ preventScroll: true });
+        }
+        function closeMobileNav() {
+            const nav = document.getElementById('sideNav');
+            if (!nav) return;
+            const wasOpen = isMobileNavOpen() && isMobileNavViewport();
+            nav.classList.add('translate-x-full');
+            document.getElementById('sideNavBackdrop').classList.add('hidden');
+            syncMobileNavA11y();
+            if (wasOpen) {
+                const btn = document.getElementById('mobileMenuBtn');
+                if (btn) btn.focus({ preventScroll: true });
+            }
+        }
         function setupMobileMenu() {
-            document.getElementById('mobileMenuBtn').addEventListener('click', () => {
-                document.getElementById('navMenu').classList.toggle('hidden');
+            syncMobileNavA11y();
+            window.addEventListener('resize', () => {
+                if (!isMobileNavViewport()) document.getElementById('sideNavBackdrop').classList.add('hidden');
+                else if (isMobileNavOpen()) document.getElementById('sideNavBackdrop').classList.remove('hidden');
+                syncMobileNavA11y();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && isMobileNavOpen() && isMobileNavViewport()) closeMobileNav();
             });
         }
 
