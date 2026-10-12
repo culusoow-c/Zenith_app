@@ -1794,14 +1794,24 @@
         // FINAL STEP: user id whose boot-time Supabase sync is still running
         // (Reset waits for it, so a migration can never re-insert reset data).
         let bootSyncUserId = null;
+        // Single-flight boot: each bootApp() call takes a new token; older boots
+        // see a stale token and stop, so two boots can never race each other.
+        let bootToken = 0;
 
         async function bootApp() {
+            const myBoot = ++bootToken;
             detectCurrentDay();
             // FINAL STEP: app state starts empty in memory and is filled ONLY from
             // Supabase (plus the device-local IndexedDB cache for offline use).
             // The old pupil_data_<userId> blob is no longer loaded or saved.
             resetInMemoryAppState();
             const bootingForUserId = currentUserId;
+            const alive = () => bootToken === myBoot && currentUserId === bootingForUserId;
+            // One failing step must never abort the rest of the boot chain.
+            const step = async (name, fn) => {
+                try { return await fn(); }
+                catch (e) { console.error('boot step failed: ' + name, e); return undefined; }
+            };
             selectedGoalsDate = todayKey();
             renderAll(); // clear any previous user's screen immediately
             renderAlarmCards();
@@ -1813,15 +1823,15 @@
             }
             removeRetiredLocalAuthKeys();
             // Device-local cache / offline queue for this user (IndexedDB).
-            await deviceStoreLoadUser(bootingForUserId);
-            if (currentUserId !== bootingForUserId) return;
+            await step('deviceStore', () => deviceStoreLoadUser(bootingForUserId));
+            if (!alive()) return;
             // STEP 3E (+ final step): analytics baseline from the last synced
             // Supabase snapshot rows (IndexedDB mirror) + this device's not yet
             // uploaded snapshot, and queued outbox sessions - before any render.
-            initAnalyticsForCurrentUser();
+            await step('analyticsInit', async () => initAnalyticsForCurrentUser());
             // STEP 3F: alarms from the device cache (+ any not-yet-migrated legacy
             // alarms), so they can fire before/without the network.
-            hydrateAlarmsFromLocal();
+            await step('alarmsLocal', async () => hydrateAlarmsFromLocal());
             renderAll(); // first paint so the UI isn't blank while Courses/Assignments/Daily Tasks load from Supabase
             renderAlarmCards();
             refreshNotificationsSafe();
@@ -1836,16 +1846,18 @@
                 // Daily Tasks -> render. Migration always runs before its matching
                 // load, so a fresh load from Supabase is never briefly overwritten
                 // by stale localStorage data.
-                await migrateLocalCoursesAndAssignmentsIfNeeded();
-                if (currentUserId !== bootingForUserId) return; // user logged out/switched while this was in flight
-                await loadCoursesFromSupabase();
-                if (currentUserId !== bootingForUserId) return;
-                await loadAssignmentsFromSupabase();
-                if (currentUserId !== bootingForUserId) return;
-                await migrateLocalDailyTasksIfNeeded();
-                if (currentUserId !== bootingForUserId) return;
-                await loadDailyTasksFromSupabase();
-                if (currentUserId !== bootingForUserId) return;
+                await step('migrateCA', migrateLocalCoursesAndAssignmentsIfNeeded);
+                if (!alive()) return; // logged out/switched or superseded by a newer boot
+                await step('migrateTasks', migrateLocalDailyTasksIfNeeded);
+                if (!alive()) return;
+                // Independent loads run in parallel; each is isolated by step().
+                await Promise.all([
+                    step('courses', loadCoursesFromSupabase),
+                    step('assignments', loadAssignmentsFromSupabase),
+                    step('dailyTasks', loadDailyTasksFromSupabase)
+                ]);
+                if (!alive()) return;
+                renderAll();
                 // STEP 3D: try to upload any Pomodoro sessions left over from a
                 // previous failed/offline attempt. Deliberately NOT awaited - a
                 // slow/unreachable network must never hold up boot; it flushes
@@ -1854,34 +1866,34 @@
                 // are already in the derived analytics store (merged in
                 // initAnalyticsForCurrentUser), and everything is deduplicated by
                 // session id, so flush timing can never change the counts.
-                flushPomodoroSessionOutbox();
+                step('pomodoroOutbox', async () => { flushPomodoroSessionOutbox(); });
                 // FINAL STEP: upload this device's legacy analytics snapshot (once),
                 // then use the user's Supabase snapshot rows as the analytics baseline.
-                await syncAnalyticsLegacyWithSupabase();
-                if (currentUserId !== bootingForUserId) return;
+                await step('analyticsSync', syncAnalyticsLegacyWithSupabase);
+                if (!alive()) return;
                 // STEP 3E: load this user's post-cutover WORK sessions (paginated)
                 // into the derived analytics store. A failure only shows a toast:
                 // legacy + outbox/optimistic data stay on screen, nothing is erased.
-                const sessionsLoaded = await loadPomodoroSessionsFromSupabase();
-                if (currentUserId !== bootingForUserId) return;
-                if (!sessionsLoaded) {
+                const sessionsLoaded = await step('sessions', loadPomodoroSessionsFromSupabase);
+                if (!alive()) return;
+                if (sessionsLoaded === false) {
                     showToast('Khalad ayaa dhacay markii taariikhda Pomodoro-ga la soo gelinayay - xogtii hore ayaa la muujinayaa.', 'error');
                 }
                 // STEP 3C: migrate any old localStorage timetable once, THEN load the
                 // timetable from Supabase (so legacy data can never overwrite it).
-                await migrateLocalTimetableIfNeeded();
-                if (currentUserId !== bootingForUserId) return;
-                await loadTimetableFromSupabase();
-                if (currentUserId !== bootingForUserId) return;
+                await step('migrateTimetable', migrateLocalTimetableIfNeeded);
+                if (!alive()) return;
+                await step('timetable', loadTimetableFromSupabase);
+                if (!alive()) return;
                 // STEP 3F: migrate legacy alarms once, retry queued one-time
                 // disables, then load alarm definitions from Supabase (falls back
                 // to the local cache if Supabase is unreachable).
-                await syncAlarmsOnBoot();
-                if (currentUserId !== bootingForUserId) return;
+                await step('alarms', syncAlarmsOnBoot);
+                if (!alive()) return;
                 // FINAL STEP: device-wide notification flag -> Supabase user_metadata,
                 // then retire the old local blob + checkpoints once fully migrated.
-                await migrateBrowserNotificationPreference();
-                if (currentUserId !== bootingForUserId) return;
+                await step('notifPref', migrateBrowserNotificationPreference);
+                if (!alive()) return;
                 finalizeLegacyLocalStorage(bootingForUserId);
                 renderAll();
                 // Shown after Daily Tasks AND Pomodoro sessions are loaded, since
@@ -1917,13 +1929,16 @@
                 legacyAnalytics = null;
                 derivedAnalytics = createDerivedAnalyticsStore(null, null);
                 bootedForUserId = currentUserId;
-                bootApp();
+                // Deferred so boot never runs inside the supabase-js auth callback
+                // (awaiting Supabase calls there can deadlock the auth lock).
+                setTimeout(() => bootApp(), 0);
             }
         }
 
         // Clears ALL in-memory auth variables and the previous user's in-memory
         // data, then shows the login screen. Writes nothing to storage.
         function clearAuthState() {
+            bootToken++; // invalidate any boot still in flight
             // STEP 3E: clear the WHOLE timer/work-session state (not just the
             // interval) so a paused session can never be resumed and completed
             // under the next user who logs in in this tab.
@@ -1977,14 +1992,11 @@
         }
         // ============ END SUPABASE AUTHENTICATION ============
 
-        window.onload = async function() {
+        window.onload = function() {
             setupMobileMenu();
-            if (supabaseClient) {
-                // Startup: Supabase getSession() is the ONLY thing that decides login state.
-                const { data: { session }, error } = await supabaseClient.auth.getSession();
-                if (error) console.error('getSession failed');
-                handleAuthSession(error ? null : session);
-            }
+            // No getSession() here: the INITIAL_SESSION event from onAuthStateChange
+            // (registered above) is the single source of login state. Calling
+            // getSession() too used to trigger a second, racing boot.
             // If Supabase isn't configured yet, the auth screen (visible by default) stays up.
         };
 
@@ -2213,6 +2225,11 @@
                 localStorage.setItem(courseAssignmentMigrationDoneKey(currentUserId), 'done');
                 return;
             }
+            if (!legacy || typeof legacy !== 'object') {
+                // Valid JSON but not an object (e.g. "null") - nothing to migrate.
+                localStorage.setItem(courseAssignmentMigrationDoneKey(currentUserId), 'done');
+                return;
+            }
 
             const legacyCourses = Array.isArray(legacy.courses) ? legacy.courses : [];
             const legacyAssignments = Array.isArray(legacy.assignments) ? legacy.assignments : [];
@@ -2312,25 +2329,47 @@
             };
         }
 
+        // task_date may come back as 'YYYY-MM-DD', a full ISO timestamp
+        // (timestamptz column) or text - always reduce it to the YYYY-MM-DD key
+        // that todayKey()/getTasksForDate() use, so tasks never "vanish" on a
+        // key mismatch.
+        function normalizeTaskDate(v) {
+            if (!v) return null;
+            return String(v).slice(0, 10);
+        }
+
         async function loadDailyTasksFromSupabase() {
-            if (!supabaseClient || !currentUserId) return;
-            const { data, error } = await supabaseClient
-                .from('daily_tasks')
-                .select('*')
-                .eq('user_id', currentUserId)
-                .order('created_at', { ascending: true });
-            if (error) {
-                console.error('loadDailyTasksFromSupabase failed:', error);
-                showToast('Khalad ayaa dhacay markii tasks-ka maalinlaha la soo gelinayay.', 'error');
-                return;
+            if (!supabaseClient || !currentUserId) return false;
+            const uid = currentUserId;
+            const PAGE = 1000; // Supabase returns at most 1000 rows per request
+            const rows = [];
+            for (let from = 0; ; from += PAGE) {
+                const { data, error } = await supabaseClient
+                    .from('daily_tasks')
+                    .select('*')
+                    .eq('user_id', uid)
+                    .order('created_at', { ascending: true })
+                    .order('id', { ascending: true })
+                    .range(from, from + PAGE - 1);
+                if (error) {
+                    console.error('loadDailyTasksFromSupabase failed:', error);
+                    showToast('Khalad ayaa dhacay markii tasks-ka maalinlaha la soo gelinayay.', 'error');
+                    return false;
+                }
+                if (currentUserId !== uid) return false; // user switched mid-load
+                const batch = data || [];
+                rows.push(...batch);
+                if (batch.length < PAGE) break;
             }
             const byDate = {};
-            (data || []).forEach(row => {
-                const key = row.task_date;
+            rows.forEach(row => {
+                const key = normalizeTaskDate(row.task_date);
+                if (!key) return;
                 if (!byDate[key]) byDate[key] = [];
                 byDate[key].push(dailyTaskFromRow(row));
             });
             appState.dailyTasksByDate = byDate;
+            return true;
         }
 
         async function createDailyTaskInSupabase(title, dateKey) {
@@ -2408,6 +2447,10 @@
                 legacy = JSON.parse(raw);
             } catch (e) {
                 // Corrupt blob - nothing safe to migrate.
+                localStorage.setItem(dailyTaskMigrationDoneKey(currentUserId), 'done');
+                return;
+            }
+            if (!legacy || typeof legacy !== 'object') {
                 localStorage.setItem(dailyTaskMigrationDoneKey(currentUserId), 'done');
                 return;
             }
@@ -2683,6 +2726,10 @@
                 localStorage.setItem(doneKey, 'done');
                 return;
             }
+            if (!legacy || typeof legacy !== 'object') {
+                localStorage.setItem(doneKey, 'done');
+                return;
+            }
 
             const ws = legacy.weeklySchedule;
             if (!ws || typeof ws !== 'object' || Array.isArray(ws)) {
@@ -2823,18 +2870,22 @@
         function openDeviceDb() {
             if (deviceDbPromise) return deviceDbPromise;
             deviceDbPromise = new Promise((resolve) => {
+                // Fallback: if IndexedDB never answers (blocked/hung), resolve null
+                // after 3s so app boot can never hang on the device cache.
+                const timer = setTimeout(() => resolve(null), 3000);
+                const done = (v) => { clearTimeout(timer); resolve(v); };
                 try {
-                    if (typeof indexedDB === 'undefined') { resolve(null); return; }
+                    if (typeof indexedDB === 'undefined') { done(null); return; }
                     const req = indexedDB.open(DEVICE_DB_NAME, DEVICE_DB_VERSION);
                     req.onupgradeneeded = () => {
                         const db = req.result;
                         DEVICE_STORES.forEach(name => { if (!db.objectStoreNames.contains(name)) db.createObjectStore(name); });
                     };
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => resolve(null);
-                    req.onblocked = () => resolve(null);
+                    req.onsuccess = () => done(req.result);
+                    req.onerror = () => done(null);
+                    req.onblocked = () => done(null);
                 } catch (e) {
-                    resolve(null);
+                    done(null);
                 }
             }).then(db => {
                 if (!db && !deviceDbWarned) {
